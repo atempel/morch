@@ -11,8 +11,15 @@ description: Use when committing, pushing, opening issues/PRs, or making any git
 
 ## Branch strategy
 
-Single `main`, direct commits — no PR workflow, no branch protection, for solo Phase One
-work (per `docs/IMPLEMENTATION_PLAN.md`). Revisit this once collaborators are added.
+Single `main`. Small, routine changes (config tweaks, doc fixes, permission allowlist
+updates) can be committed directly — no PR needed for those.
+
+**Big updates or changes must go through a PR and be reviewed by another agent before
+merging.** This includes new milestones/features, architecture or persistence changes, and
+anything otherwise significant enough to warrant a `DECISIONS.md` entry. Open a branch, push
+it, `gh pr create`, get another agent's review, then merge — don't merge your own PR without
+that review. There's no branch protection enforcing this yet, so it's on the honor system
+until collaborators are added.
 
 ## Commit message style
 
