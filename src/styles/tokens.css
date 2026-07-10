@@ -1,0 +1,70 @@
+/*
+ * Design tokens per DESIGN.md. Dark mode is canonical/default (see DESIGN.md
+ * Overview) and is the only theme wired up so far — the light/dark toggle
+ * itself is M8 (Dashboard UI) scope, not built yet. Component CSS should
+ * reference these custom properties, never raw hex values, so adding the
+ * light-mode override block later is a single, isolated change.
+ */
+:root {
+  /* Nord source swatches (also load-bearing for future light-mode mapping) */
+  --n0: #363a46;
+  --n1: #3b4252;
+  --n2: #434c5e;
+  --n3: #4c566a;
+  --n4: #d8dee9;
+  --n5: #e5e9f0;
+  --n6: #ecedf1;
+  --n7: #8fbcbb;
+  --n8: #88c0d0;
+  --n9: #81a1c1;
+  --n10: #5e81ac;
+  --n11: #bf616a;
+  --n12: #d08770;
+  --n13: #ebcb8b;
+  --n14: #a3be8c;
+  --n15: #b48ead;
+
+  --canvas-dark: #12141a;
+  --surface-dark: #1c1f27;
+  --surface-raised-dark: #252a34;
+  --surface-overlay-dark: #2f3542;
+  --border-strong-dark: #404859;
+  --text-muted-dark: #828ea6;
+  --primary-hover: #9fd0de;
+  --primary-text-light: #48678c;
+
+  /* Semantic roles — dark mode values */
+  --background: var(--canvas-dark);
+  --surface: var(--surface-dark);
+  --surface-raised: var(--surface-raised-dark);
+  --surface-overlay: var(--surface-overlay-dark);
+  --border: var(--surface-overlay-dark);
+  --border-strong: var(--border-strong-dark);
+  --text-primary: var(--n6);
+  --text-secondary: var(--n4);
+  --text-muted: var(--text-muted-dark);
+  --primary: var(--n8);
+  --secondary: var(--n9);
+  --success: var(--n14);
+  --warning: var(--n13);
+  --danger: var(--n11);
+  --tertiary: var(--n15);
+  --on-primary: var(--canvas-dark);
+  --on-success: var(--canvas-dark);
+  --on-warning: var(--canvas-dark);
+  --on-danger: var(--canvas-dark);
+
+  --rounded-sm: 4px;
+  --rounded-md: 6px;
+  --rounded-lg: 10px;
+  --rounded-pill: 999px;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+
+  --font-sans: "Noto Sans", -apple-system, system-ui, sans-serif;
+  --font-mono: "Noto Sans Mono", "SF Mono", Consolas, monospace;
+}

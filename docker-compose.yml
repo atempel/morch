@@ -1,0 +1,53 @@
+services:
+  # ── Dev environment — Claude Code + Rust/Node toolchain ──────────────────
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: morch-dev
+    volumes:
+      # Project source (bind mount — editable from the host)
+      - .:/workspace
+      # Persist Claude Code login across container recreation
+      - ./.claude_global:/root/.claude
+      # Isolated volumes — native Linux filesystem (avoids slow/cross-OS mounts)
+      - morch_node_modules:/workspace/node_modules
+      - morch_cargo_target:/workspace/src-tauri/target
+      - cargo_registry:/root/.cargo/registry
+      - cargo_git:/root/.cargo/git
+    environment:
+      - COLORTERM=truecolor
+      - TERM=xterm-256color
+    tty: true
+    stdin_open: true
+    working_dir: /workspace
+
+  # ── Frontend preview — Vite dev server ────────────────────────────────────
+  # Serves just the web UI (no native Tauri window, which needs a display).
+  # Open on the host: http://localhost:1420
+  # No-ops with a message until M1 (scaffold) has run — see IMPLEMENTATION_PLAN.md.
+  frontend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: morch-frontend-dev
+    volumes:
+      - .:/workspace
+      - morch_node_modules:/workspace/node_modules
+    ports:
+      - "1420:1420"
+    working_dir: /workspace
+    environment:
+      - COLORTERM=truecolor
+      - TERM=xterm-256color
+    # --host makes Vite listen on 0.0.0.0 so it's reachable outside the container
+    command: >
+      sh -c "if [ -f package.json ]; then npm install && npm run dev -- --host;
+      else echo 'No package.json yet — run M1 (scaffold) first, see docs/IMPLEMENTATION_PLAN.md' && sleep infinity; fi"
+
+# ── Named volumes ───────────────────────────────────────────────────────────
+volumes:
+  morch_node_modules:
+  morch_cargo_target:
+  cargo_registry:
+  cargo_git:
