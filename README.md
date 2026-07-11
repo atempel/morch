@@ -16,6 +16,12 @@ A desktop control panel for managing instructions across AI workspace markdown f
 
 When AI workspaces grow large, instructions accumulate across multiple markdown files and become hard to track. Morch gives users a dashboard to see every instruction, toggle it on/off, and keep the AI-facing files clean — without losing anything (disabled instructions are archived, not deleted).
 
+<p align="center">
+  <picture>
+    <img src="brand/app-preview.png" alt="Morch Preview">
+  </picture>
+</p>
+
 ## Project Status
 
 **Phase**: In development — M1–M6 complete (Tauri v2 + React scaffold, workspace scanner, onboarding, parser, disabled-archive manager, file watcher). Framework, PRD, visual identity (Nord, dual-tone), and dashboard interaction design (List + Board views, onboarding, disabled-instruction archive, ignored-files drawer) are all locked and validated via an interactive prototype. See the [Development](#development) section below and `docs/IMPLEMENTATION_PLAN.md` for the remaining milestones (M7–M10).
