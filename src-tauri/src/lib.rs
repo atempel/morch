@@ -1,4 +1,5 @@
 mod archive;
+mod instructions;
 mod parser;
 mod scanner;
 mod watcher;
@@ -94,6 +95,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(WatcherState::default())
+        .manage(instructions::InstructionManagerState::default())
         .invoke_handler(tauri::generate_handler![
             config_exists,
             read_config,
@@ -102,7 +104,10 @@ pub fn run() {
             parser::parse_file,
             archive::disable_instruction,
             archive::enable_instruction,
-            watch_managed_files
+            watch_managed_files,
+            instructions::load_instructions,
+            instructions::toggle_instruction,
+            instructions::set_instruction_alias
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
