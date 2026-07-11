@@ -166,3 +166,15 @@ Log of key product and technical decisions, with rationale, in chronological ord
 **Rationale**: `docs/IMPLEMENTATION_PLAN.md`'s M5 acceptance bar only requires "zero data loss (byte-for-byte line content preserved)" on restore — it doesn't require positional fidelity, and neither `docs/FILE_STRUCTURE.md` nor `docs/USER_FLOWS.md` §4.4 specify one. Preserving position would require embedding line-number metadata into the archive file (e.g. an inline marker before each line), which risks reading as forced structure injected into the user's own content (Core Principle #1) for a guarantee nothing has actually asked for yet. Content-only round-tripping is the simpler, sufficient implementation for Phase One.
 
 **Status**: Locked in for Phase One. Revisit if real usage shows position-preserving restore matters (e.g. a restored instruction landing under the wrong heading is confusing in practice) — flagged here rather than silently decided so it's easy to reopen.
+
+---
+
+## 2026-07-11 — File watcher: `notify` crate, 300ms debounce, hash-based (not timestamp-based) self-write detection
+
+**Decision**: M6's file watcher uses the `notify` crate (v8.2.0) directly rather than a debouncer crate — debouncing is implemented by hand as a background thread that batches events per-path over a 300ms window. Loop prevention (TECHNICAL_ARCHITECTURE.md §5.5) compares a hash of the file's content after the debounce window against a hash recorded by the app's own write helpers (`archive.rs`'s `write_lines`/`append_line`) at write time — not file modification timestamps, despite §5.5 listing timestamps as one option.
+
+**Rationale**: Content hashing is more robust than mtime comparison here: mtime resolution and clock behavior vary across filesystems/platforms, and a timestamp match doesn't actually prove the content is the app's own write (an external tool could write in the same tick). Comparing hashes of actual content is a direct check of the thing that matters — "is this exactly what we just wrote" — with no platform-dependent timing assumptions. Hand-rolling the debounce (rather than pulling in `notify-debouncer-mini`/`-full`) kept the dependency surface small and made the self-write-suppression logic (which has to run inside the debounce flush, not just on raw events) straightforward to write and unit-test directly, including against real OS-level inotify events on temp files.
+
+Only *enabled* managed files are watched (the frontend passes `managedFiles.filter(f => f.enabled).map(f => f.path)` to `watch_managed_files`), not the disabled-archive mirror — the watcher's job is keeping the AI-facing active files in sync with the dashboard; nothing currently reads the archive back out except `enable_instruction` itself.
+
+**Status**: Locked in for Phase One. The 300ms debounce window is a starting value (PRD.md's target is "under 1 second, debounce window included") — revisit if real usage shows it's too slow or causes missed rapid-succession edits.
