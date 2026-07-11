@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="brand/logo-morch-dark-transparent.svg" alt="Morch" width="320">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/logo-morch-dark-transparent.svg">
+    <source media="(prefers-color-scheme: light)" srcset="brand/logo-morch-light-transparent.svg">
+    <img src="brand/logo-morch-light-transparent.svg" alt="Morch" width="320">
+  </picture>
 </p>
 
 # Morch
@@ -14,7 +18,7 @@ When AI workspaces grow large, instructions accumulate across multiple markdown 
 
 ## Project Status
 
-**Phase**: Concept / Specification — fully speced, not yet implemented. Framework, PRD, visual identity (Nord, dual-tone), and dashboard interaction design (List + Board views, onboarding, disabled-instruction archive, ignored-files drawer) are all locked and validated via an interactive prototype. No code exists yet — `docs/IMPLEMENTATION_PLAN.md` has the concrete milestone-by-milestone build plan (M1–M10) for the coding session picking this up next.
+**Phase**: In development — M1–M5 complete (Tauri v2 + React scaffold, workspace scanner, onboarding, parser, disabled-archive manager). Framework, PRD, visual identity (Nord, dual-tone), and dashboard interaction design (List + Board views, onboarding, disabled-instruction archive, ignored-files drawer) are all locked and validated via an interactive prototype. See the [Development](#development) section below and `docs/IMPLEMENTATION_PLAN.md` for the remaining milestones (M6–M10).
 **Scope**: Phase One — instruction management only (see `docs/SPEC.md` §7)
 
 ## Structure

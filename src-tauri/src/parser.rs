@@ -82,7 +82,7 @@ mod tests {
         let instructions = parse_markdown("CLAUDE.md", &contents);
 
         let line_numbers: Vec<usize> = instructions.iter().map(|i| i.line_number).collect();
-        assert_eq!(line_numbers, vec![5, 9, 10, 11, 12, 16, 17, 18, 19, 23]);
+        assert_eq!(line_numbers, vec![5, 9, 10, 11, 12, 16, 17, 18, 19, 20, 24]);
 
         // "Project Purpose" prose becomes a single long instruction line (finding #2).
         assert!(instructions[0].content.starts_with("This project is the specification"));
