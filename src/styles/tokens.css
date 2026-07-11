@@ -1,9 +1,10 @@
 /*
  * Design tokens per DESIGN.md. Dark mode is canonical/default (see DESIGN.md
- * Overview) and is the only theme wired up so far — the light/dark toggle
- * itself is M8 (Dashboard UI) scope, not built yet. Component CSS should
- * reference these custom properties, never raw hex values, so adding the
- * light-mode override block later is a single, isolated change.
+ * Overview); light mode is a `:root[data-theme="light"]` override block
+ * below, toggled by setting that attribute on the document root (M8) — a
+ * single point of change, per DESIGN.md's Light mode mapping table note.
+ * Component CSS should reference these custom properties, never raw hex
+ * values, so the light/dark swap stays isolated to this file.
  */
 :root {
   /* Nord source swatches (also load-bearing for future light-mode mapping) */
@@ -44,6 +45,11 @@
   --text-secondary: var(--n4);
   --text-muted: var(--text-muted-dark);
   --primary: var(--n8);
+  /* Accent used *as text* (alias badges, active-nav labels) rather than as a
+     fill — DESIGN.md's mapping table splits this from `--primary` because
+     n8/n10 don't clear AA contrast as small text in light mode; see the
+     light-mode override below. */
+  --primary-text: var(--n8);
   --secondary: var(--n9);
   --success: var(--n14);
   --warning: var(--n13);
@@ -56,6 +62,10 @@
 
   --rounded-sm: 4px;
   --rounded-md: 6px;
+  /* Not in DESIGN.md's documented scale — the Figma design (source of truth
+     for exact dashboard spacing, see DECISIONS.md) uses this for instruction
+     rows and callout cards specifically, between the md/lg steps. */
+  --rounded-card: 8px;
   --rounded-lg: 10px;
   --rounded-pill: 999px;
 
@@ -67,4 +77,40 @@
 
   --font-sans: "Noto Sans", -apple-system, system-ui, sans-serif;
   --font-mono: "Noto Sans Mono", "SF Mono", Consolas, monospace;
+
+  /* Typography scale per DESIGN.md — sizes only vary here; family/weight/line-height are applied via utility classes in global.css */
+  --text-h1: 20px;
+  --text-h2: 16px;
+  --text-h3: 14px;
+  --text-body: 13px;
+  --text-label: 11px;
+  --text-code: 12px;
+}
+
+/*
+ * Light mode — per DESIGN.md's "Light mode mapping" table. That table only
+ * enumerates background, surface, surface-raised, the text roles, and
+ * primary; the remaining semantic tokens below extend its stated pattern (continue the
+ * background→surface→surface-raised→surface-overlay chain one more step,
+ * `border` reuses `surface-overlay` as dark mode's Polar Night section
+ * says it does) and, where the table gives no basis to derive a value at
+ * all (border-strong, primary-hover, on-primary), borrow the validated
+ * `morch_prototype_ux_fixes` prototype's own light-mode swatch rather than
+ * inventing one — flagged in DECISIONS.md as an inferred gap-fill.
+ */
+:root[data-theme="light"] {
+  --background: var(--n6);
+  --surface: var(--n5);
+  --surface-raised: var(--n4);
+  --surface-overlay: var(--n3);
+  --border: var(--n3);
+  --border-strong: #b8c2d6;
+  --text-primary: var(--n0);
+  --text-secondary: var(--n1);
+  --text-muted: var(--n3);
+  --primary: var(--n10);
+  --primary-hover: #6e91bc;
+  --primary-text: var(--primary-text-light);
+  --secondary: var(--n10);
+  --on-primary: var(--n6);
 }

@@ -22,6 +22,8 @@ Sequenced implementation tasks. Each depends on the ones before it unless noted.
 - Multi-line instruction block support (grouping consecutive lines like DECISIONS.md's Decision/Rationale/Status into one toggleable unit) — flagged as a real gap in `PARSING_VALIDATION.md`, deferred because it needs a block-boundary heuristic that's easy to get wrong.
 - Instruction `type` metadata (directive vs. context) — informed by the "Project Purpose" prose-paragraph finding.
 - Usage analytics to inform naming/aliasing suggestions (SPEC.md §8 asks whether the app should suggest names).
+- **Configurable default Markdown editor**: let the user set a preferred external editor for managed files, then add an "open in editor" control next to each filename (sidebar item / board column header) alongside the existing ignore-file control — a quick way to jump from Morch straight into editing the underlying file. Needs a new config field (editor command/path) and a Rust command to launch it (likely `std::process::Command` or a Tauri shell-plugin call, scoped carefully since it's launching an arbitrary user-configured executable).
+- **Confirm before ignoring a file**: the ignore-file action (`onIgnoreFile` in `ListView`/`BoardView`) currently fires immediately on click with no confirmation, unlike DESIGN.md's stated "one-click, one-click-reversible" intent for this control. Add a lightweight confirmation step (e.g. a small inline confirm rather than a full modal, to stay consistent with the product's general "reversible actions aren't scary" tone) before actually flipping the managed-file's `enabled` flag.
 
 ## Later — Phase Two+ (Explicitly Out of Scope for Now)
 

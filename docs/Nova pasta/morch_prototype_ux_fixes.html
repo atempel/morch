@@ -1,0 +1,470 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500&family=Noto+Sans+Mono:wght@400;500&display=swap">
+<h2 class="sr-only">Updated high-fidelity prototype of the Morch desktop app with three interaction fixes: a visible separator between the toolbar and the content below, a height-capped scrollable disabled-archive drawer, and a dismissible warning on flagged files like DECISIONS.md with a "Manage anyway" override plus persistent add-file controls in both List and Board views.</h2>
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.morch{
+  --bg:#12141A;--surface:#1C1F27;--surface-raised:#252A34;--surface-overlay:#2F3542;
+  --border:#2F3542;--border-strong:#404859;
+  --text-primary:#ECEFF4;--text-secondary:#D8DEE9;--text-muted:#828EA6;
+  --primary:#88C0D0;--primary-hover:#9FD0DE;--primary-text:#88C0D0;--secondary:#81A1C1;
+  --success:#A3BE8C;--warning:#EBCB8B;--danger:#BF616A;
+  --on-primary:#12141A;--on-danger:#12141A;
+  --font-ui:'Noto Sans', var(--font-sans), -apple-system, sans-serif;
+  --font-mono-ui:'Noto Sans Mono', var(--font-mono), 'SF Mono', Consolas, monospace;
+  font-family: var(--font-ui);
+  transition: background .15s;
+}
+.morch.light-mode{
+  --bg:#ECEFF4;--surface:#E5E9F0;--surface-raised:#D8DEE9;--surface-overlay:#D8DEE9;
+  --border:#D8DEE9;--border-strong:#B8C2D6;
+  --text-primary:#2E3440;--text-secondary:#3B4252;--text-muted:#5B6880;
+  --primary:#5E81AC;--primary-hover:#6E91BC;--primary-text:#48678C;--secondary:#5E81AC;
+  --success:#5B8A50;--warning:#9C7A1E;--danger:#A8434E;
+  --on-primary:#ECEFF4;--on-danger:#ECEFF4;
+}
+.morch-window{background:var(--bg);border-radius:10px;overflow:hidden;border:0.5px solid var(--border);box-shadow:0 1px 2px rgba(0,0,0,0.4)}
+.titlebar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border)}
+.dot{width:10px;height:10px;border-radius:50%}
+.wordmark{color:var(--text-primary);font-size:13px;font-weight:500;margin-left:6px}
+.pathcrumb{color:var(--text-muted);font-size:12px;margin-left:auto;font-family:var(--font-mono-ui)}
+.mode-btn{background:var(--surface-raised);border:0.5px solid var(--border);color:var(--text-secondary);border-radius:6px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px}
+.mode-btn:hover{background:var(--surface-overlay)}
+.wizard-body{padding:20px 24px}
+.step-indicator{color:var(--text-muted);font-size:11px;font-family:var(--font-mono-ui);letter-spacing:.03em;margin-bottom:4px}
+.wizard-title{color:var(--text-primary);font-size:16px;font-weight:500}
+.wizard-sub{color:var(--text-secondary);font-size:13px;margin-top:2px}
+.callout{display:flex;gap:10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:14px}
+.callout i{color:var(--primary);font-size:16px;margin-top:1px}
+.callout ul{margin:0;padding-left:16px;color:var(--text-secondary);font-size:12.5px;line-height:1.6}
+.checklist{margin-top:16px;display:flex;flex-direction:column;gap:6px}
+.check-row{display:flex;align-items:flex-start;gap:10px;padding:10px 10px;border-radius:6px;background:var(--surface)}
+.check-row input{accent-color:var(--primary);width:15px;height:15px;margin-top:2px}
+.check-row i{font-size:15px;margin-top:2px;color:var(--primary)}
+.check-row.flagged i{color:var(--warning)}
+.check-main{flex:1;min-width:0}
+.check-name{color:var(--text-primary);font-size:13px;font-family:var(--font-mono-ui);display:block}
+.check-desc{color:var(--text-muted);font-size:12px;margin-top:2px;line-height:1.4}
+.check-lines{color:var(--text-muted);font-size:11px;white-space:nowrap;margin-left:8px}
+.check-toprow{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.addfile-row{display:flex;gap:8px;margin-top:14px}
+.addfile-row input{flex:1;background:var(--surface);border:0.5px solid var(--border);color:var(--text-primary);border-radius:6px;padding:8px 10px;font-size:13px;font-family:var(--font-ui)}
+.addfile-row input::placeholder{color:var(--text-muted)}
+.btn{border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;border:0.5px solid var(--border);background:var(--surface);color:var(--text-primary);cursor:pointer;font-family:var(--font-ui)}
+.btn:hover{background:var(--surface-overlay)}
+.btn-primary{background:var(--primary);color:var(--on-primary);border:none}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-sm{padding:5px 10px;font-size:11.5px;border-radius:5px}
+.wizard-footer{display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding-top:14px;border-top:0.5px solid var(--border)}
+.wizard-footer .count{color:var(--text-muted);font-size:12px}
+.dash-body{display:flex;min-height:360px}
+.sidebar{width:190px;background:var(--surface);border-right:0.5px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.side-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;color:var(--text-secondary);font-size:12.5px;font-family:var(--font-mono-ui);cursor:pointer;border:0.5px solid transparent}
+.side-item i{font-size:15px}
+.side-item:hover{background:var(--surface-overlay)}
+.side-item.active{background:var(--surface-overlay);color:var(--text-primary);border-color:var(--border-strong)}
+.side-count{margin-left:auto;color:var(--text-muted);font-size:11px}
+.side-item.flagged{color:var(--warning)}
+.side-item.flagged i{color:var(--warning)}
+.side-add{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;color:var(--text-muted);font-size:12px;cursor:pointer;border:0.5px dashed var(--border-strong);margin-top:6px;font-family:var(--font-ui)}
+.side-add:hover{background:var(--surface-overlay);color:var(--text-primary)}
+.side-add-input{display:none;gap:6px;margin-top:6px}
+.side-add-input.open{display:flex}
+.side-add-input input{flex:1;background:var(--bg);border:0.5px solid var(--border);color:var(--text-primary);border-radius:5px;padding:6px 8px;font-size:12px;font-family:var(--font-ui)}
+.main{flex:1;padding:16px 20px;display:flex;flex-direction:column;min-width:0}
+.toolbar-wrap{border-bottom:0.5px solid var(--border);padding:16px 20px 14px}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.search{flex:1;min-width:140px;display:flex;align-items:center;gap:8px;background:var(--surface);border:0.5px solid var(--border);border-radius:6px;padding:7px 10px}
+.search i{color:var(--text-muted);font-size:15px}
+.search input{background:transparent;border:none;outline:none;color:var(--text-primary);font-size:13px;flex:1;font-family:var(--font-ui)}
+.search input::placeholder{color:var(--text-muted)}
+.stats{color:var(--text-secondary);font-size:12px;white-space:nowrap}
+.stats b{color:var(--success);font-weight:500}
+.stats .off{color:var(--text-muted);font-weight:500}
+.viewswitch{display:flex;background:var(--surface);border:0.5px solid var(--border);border-radius:6px;padding:2px;gap:2px}
+.viewswitch button{border:none;background:transparent;color:var(--text-secondary);font-size:12px;padding:6px 10px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--font-ui)}
+.viewswitch button.active{background:var(--surface-overlay);color:var(--text-primary)}
+.instr-list{display:flex;flex-direction:column;gap:6px;overflow:auto}
+.instr-row{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;background:var(--surface);border:0.5px solid var(--border)}
+.instr-row.is-off{opacity:0.55}
+.toggle{position:relative;display:inline-block;width:32px;height:18px;flex-shrink:0;margin-top:1px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.track{position:absolute;inset:0;background:var(--border-strong);border-radius:999px;transition:background .15s}
+.knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text-secondary);transition:transform .15s}
+.toggle input:checked + .track{background:var(--success)}
+.toggle input:checked + .track .knob{transform:translateX(14px)}
+.instr-main{min-width:0;flex:1}
+.instr-text{color:var(--text-primary);font-size:12.5px;line-height:1.5}
+.is-off .instr-text{text-decoration:line-through;color:var(--text-secondary)}
+.instr-meta{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap}
+.badge-alias{background:var(--bg);color:var(--primary-text);font-size:10.5px;padding:2px 7px;border-radius:999px;font-family:var(--font-mono-ui)}
+.line-tag{color:var(--text-muted);font-size:10.5px;font-family:var(--font-mono-ui)}
+.warn-card{background:var(--surface);border:0.5px solid var(--warning);border-radius:8px;padding:14px;display:flex;gap:10px}
+.warn-card i{color:var(--warning);font-size:18px;margin-top:1px}
+.warn-card .t{color:var(--text-primary);font-size:13px;font-weight:500}
+.warn-card .s{color:var(--text-secondary);font-size:12.5px;margin-top:3px;line-height:1.5}
+.warn-card .actions{margin-top:10px}
+.flagged-pill{display:inline-flex;align-items:center;gap:4px;color:var(--warning);font-size:10.5px;margin-left:6px}
+.archive{background:var(--surface);border-top:1px solid var(--border)}
+.archive-head{display:flex;align-items:center;gap:8px;padding:12px 20px;cursor:pointer;color:var(--text-secondary);font-size:12.5px}
+.archive-head i.lead{color:var(--text-muted)}
+.archive-head .chev{margin-left:auto;transition:transform .15s;color:var(--text-muted)}
+.archive-head .chev.open{transform:rotate(180deg)}
+.archive-body{padding:0 20px 14px;display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto}
+.arch-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg);border:0.5px solid var(--border);border-radius:6px}
+.arch-row .f{color:var(--text-muted);font-size:11px;font-family:var(--font-mono-ui);min-width:74px}
+.arch-row .t{color:var(--text-secondary);font-size:12.5px;flex:1;text-decoration:line-through}
+.arch-restore{background:none;border:0.5px solid var(--border-strong);color:var(--primary-text);font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-family:var(--font-ui)}
+.arch-restore:hover{background:var(--surface-overlay)}
+.arch-empty{color:var(--text-muted);font-size:12px;padding:6px 10px}
+.board-wrap{overflow-x:auto;padding-bottom:6px}
+.board-row{display:flex;gap:12px;min-height:360px}
+.board-col{flex:0 0 250px;background:var(--surface);border-radius:10px;border:0.5px solid var(--border);display:flex;flex-direction:column;max-height:420px}
+.board-col.empty-match{opacity:.45}
+.board-col-head{padding:10px 12px;border-bottom:0.5px solid var(--border);background:var(--surface-raised);border-radius:10px 10px 0 0}
+.board-col-head .name{color:var(--text-primary);font-size:12px;font-family:var(--font-mono-ui);display:block}
+.board-col-head .cnt{color:var(--text-muted);font-size:10.5px;margin-top:2px;display:block}
+.board-col-body{overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;flex:1}
+.board-col-empty{color:var(--text-muted);font-size:11.5px;padding:8px 4px;text-align:center}
+.board-add-col{flex:0 0 90px;display:flex;align-items:center;justify-content:center;border:0.5px dashed var(--border-strong);border-radius:10px;color:var(--text-muted);cursor:pointer;font-size:20px;max-height:420px}
+.board-add-col:hover{background:var(--surface);color:var(--text-primary)}
+</style>
+<div class="morch" id="morch-root">
+<div style="display:flex;flex-direction:column;gap:22px">
+
+  <div class="morch-window">
+    <div class="titlebar">
+      <span class="dot" style="background:var(--danger)"></span>
+      <span class="dot" style="background:var(--warning)"></span>
+      <span class="dot" style="background:var(--success)"></span>
+      <span class="wordmark">Morch — setup</span>
+      <span class="pathcrumb">~/Markdown Orchestrator</span>
+    </div>
+    <div class="wizard-body">
+      <div class="step-indicator">STEP 1 OF 2</div>
+      <div class="wizard-title">Select files to manage</div>
+      <div class="wizard-sub">Detected 6 candidate files in this workspace</div>
+      <div class="callout">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        <ul>
+          <li>Scanning is read-only — selecting a file here doesn't change it.</li>
+          <li>Disabling an instruction later archives it, it's never deleted.</li>
+          <li>Nothing here is final — add or remove managed files anytime from the dashboard.</li>
+        </ul>
+      </div>
+      <div class="checklist">
+        <div class="check-row">
+          <input type="checkbox" checked><i class="ti ti-file-text" aria-hidden="true"></i>
+          <div class="check-main">
+            <div class="check-toprow"><span class="check-name">CLAUDE.md</span><span class="check-lines">24 lines</span></div>
+            <div class="check-desc">Core instructions read by Claude Code every session.</div>
+          </div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" checked><i class="ti ti-file-text" aria-hidden="true"></i>
+          <div class="check-main">
+            <div class="check-toprow"><span class="check-name">AGENTS.md</span><span class="check-lines">29 lines</span></div>
+            <div class="check-desc">Operating notes for any AI agent working in this repo.</div>
+          </div>
+        </div>
+        <div class="check-row flagged">
+          <input type="checkbox"><i class="ti ti-alert-triangle" aria-hidden="true"></i>
+          <div class="check-main">
+            <div class="check-toprow"><span class="check-name">DECISIONS.md</span><span class="check-lines">82 lines</span></div>
+            <div class="check-desc">Log-style — entries span multiple lines, per-line toggling isn't recommended.</div>
+          </div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" checked><i class="ti ti-folder" aria-hidden="true"></i>
+          <div class="check-main">
+            <div class="check-toprow"><span class="check-name">docs/SPEC.md</span><span class="check-lines">119 lines</span></div>
+            <div class="check-desc">Full product specification — long-form, mostly reference material.</div>
+          </div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" checked><i class="ti ti-folder" aria-hidden="true"></i>
+          <div class="check-main">
+            <div class="check-toprow"><span class="check-name">docs/USER_FLOWS.md</span><span class="check-lines">43 lines</span></div>
+            <div class="check-desc">Step-by-step user flow walkthroughs.</div>
+          </div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox"><i class="ti ti-folder" aria-hidden="true"></i>
+          <div class="check-main">
+            <div class="check-toprow"><span class="check-name">docs/ROADMAP.md</span><span class="check-lines">33 lines</span></div>
+            <div class="check-desc">Now/Next/Later plan — mostly reference material.</div>
+          </div>
+        </div>
+      </div>
+      <div class="addfile-row">
+        <input type="text" placeholder="Add a custom file path...">
+        <button class="btn"><i class="ti ti-plus" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"></i>Add file</button>
+      </div>
+      <div class="wizard-footer">
+        <span class="count">4 of 6 files selected</span>
+        <button class="btn btn-primary">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="morch-window">
+    <div class="titlebar">
+      <span class="dot" style="background:var(--danger)"></span>
+      <span class="dot" style="background:var(--warning)"></span>
+      <span class="dot" style="background:var(--success)"></span>
+      <span class="wordmark">Morch</span>
+      <span class="pathcrumb">~/Markdown Orchestrator</span>
+      <button class="mode-btn" id="mode-toggle" aria-label="Toggle light and dark mode"><i class="ti ti-moon" id="mode-icon" aria-hidden="true"></i></button>
+    </div>
+    <div class="toolbar-wrap">
+      <div class="toolbar">
+        <div class="search"><i class="ti ti-search" aria-hidden="true"></i><input id="search" type="text" placeholder="Filter instructions..."></div>
+        <div class="stats" id="stats"></div>
+        <div class="viewswitch">
+          <button id="view-list-btn" class="active"><i class="ti ti-list" aria-hidden="true"></i>List</button>
+          <button id="view-board-btn"><i class="ti ti-layout-kanban" aria-hidden="true"></i>Board</button>
+        </div>
+      </div>
+    </div>
+    <div class="dash-body" id="list-view">
+      <div class="sidebar" id="sidebar"></div>
+      <div class="main" style="padding-top:16px">
+        <div class="instr-list" id="instr-list"></div>
+      </div>
+    </div>
+    <div id="board-view" style="display:none;padding:16px 20px">
+      <div class="board-wrap"><div class="board-row" id="board-row"></div></div>
+    </div>
+    <div class="archive">
+      <div class="archive-head" id="archive-toggle">
+        <i class="ti ti-eye-off lead" aria-hidden="true"></i>
+        <span>Disabled archive — the AI never reads this</span>
+        <i class="ti ti-chevron-down chev" id="archive-chev" aria-hidden="true"></i>
+      </div>
+      <div class="archive-body" id="archive-body" style="display:none"></div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+(function(){
+  var data = [
+    {id:1,file:'CLAUDE.md',line:9,text:'No forced structure — never require workspace to conform to a schema',alias:'no-forced-structure',enabled:true},
+    {id:2,file:'CLAUDE.md',line:10,text:'AI must be described as a tool, never a creative entity or autonomous agent',alias:'ai-as-tool',enabled:true},
+    {id:3,file:'CLAUDE.md',line:11,text:'Disabled instructions are archived, not deleted',alias:'archive-not-delete',enabled:true},
+    {id:4,file:'CLAUDE.md',line:12,text:'Structural and AI-processed files are written in English',alias:'english-structural-files',enabled:true},
+    {id:5,file:'CLAUDE.md',line:16,text:'Read docs/SPEC.md first — source of truth for scope',alias:'read-spec-first',enabled:true},
+    {id:6,file:'CLAUDE.md',line:17,text:'Phase One is instruction management ONLY',alias:'phase-one-scope',enabled:false},
+    {id:7,file:'CLAUDE.md',line:18,text:'Log architectural choices in DECISIONS.md with rationale',alias:'log-decisions',enabled:true},
+    {id:8,file:'AGENTS.md',line:10,text:'Treat each line as a candidate instruction',alias:'line-based-parsing',enabled:true},
+    {id:9,file:'AGENTS.md',line:11,text:'Preserve original line numbers for toggle/restore',alias:'preserve-line-numbers',enabled:true},
+    {id:10,file:'AGENTS.md',line:12,text:'No opinionated structure enforcement',alias:'no-structure-enforcement',enabled:true},
+    {id:11,file:'AGENTS.md',line:15,text:'App writes must not re-trigger a redundant re-parse',alias:'no-sync-loops',enabled:true},
+    {id:12,file:'AGENTS.md',line:16,text:'External edits must be detected without a restart',alias:'live-external-sync',enabled:true},
+    {id:13,file:'AGENTS.md',line:19,text:'Never write disabled instructions where the AI can read them',alias:'ai-blind-archive',enabled:true},
+    {id:14,file:'AGENTS.md',line:20,text:'Mirror the active file structure in the archive',alias:'mirror-archive-structure',enabled:false},
+    {id:15,file:'docs/SPEC.md',line:57,text:'Disabled instructions stored in a designated .morch-disabled/ folder',alias:'archive-location',enabled:true},
+    {id:16,file:'docs/SPEC.md',line:32,text:'App treats each line in a markdown file as a potential instruction unit',alias:'flexible-parsing',enabled:false},
+    {id:17,file:'DECISIONS.md',line:39,text:'**Decision**: Disabled instructions stored in a directory that mirrors the workspace layout',alias:'decision-line-39',enabled:true},
+    {id:18,file:'DECISIONS.md',line:41,text:'**Rationale**: Scales better as workspaces grow; keeps disabled content organized by source file',alias:'rationale-line-41',enabled:true},
+    {id:19,file:'DECISIONS.md',line:43,text:'**Status**: Locked in',alias:'status-line-43',enabled:false},
+    {id:20,file:'DECISIONS.md',line:57,text:'**Decision**: Framework locked to Tauri v2 with SQLite for local storage',alias:'decision-line-57',enabled:true}
+  ];
+  var files = ['CLAUDE.md','AGENTS.md','DECISIONS.md','docs/SPEC.md'];
+  var fileIcons = {'CLAUDE.md':'ti-file-text','AGENTS.md':'ti-file-text','DECISIONS.md':'ti-alert-triangle','docs/SPEC.md':'ti-folder'};
+  var flagged = {'DECISIONS.md':true};
+  var overridden = {};
+  var selected = 'CLAUDE.md';
+  var archiveOpen = false;
+  var viewMode = 'list';
+  var sideAddOpen = false;
+
+  function itemsFor(file){ return data.filter(function(d){return d.file===file}); }
+  function countsFor(file){
+    var items = itemsFor(file);
+    return {total:items.length, on:items.filter(function(d){return d.enabled}).length};
+  }
+  function query(){ return (document.getElementById('search').value || '').toLowerCase(); }
+  function matches(d,q){ return !q || d.text.toLowerCase().indexOf(q)>-1 || d.alias.toLowerCase().indexOf(q)>-1; }
+  function iconFor(f){ return fileIcons[f] || (f.indexOf('docs/')===0 ? 'ti-folder' : 'ti-file-text'); }
+
+  function rowNode(d){
+    var row = document.createElement('div');
+    row.className = 'instr-row' + (d.enabled?'':' is-off');
+    row.innerHTML =
+      '<label class="toggle"><input type="checkbox" '+(d.enabled?'checked':'')+' data-id="'+d.id+'"><span class="track"><span class="knob"></span></span></label>'+
+      '<div class="instr-main">'+
+        '<div class="instr-text">'+d.text+'</div>'+
+        '<div class="instr-meta"><span class="badge-alias">'+d.alias+'</span><span class="line-tag">L'+d.line+'</span></div>'+
+      '</div>';
+    row.querySelector('input').addEventListener('change', function(e){
+      var id = parseInt(e.target.getAttribute('data-id'),10);
+      data.forEach(function(x){ if(x.id===id) x.enabled = e.target.checked; });
+      render();
+    });
+    return row;
+  }
+
+  function warningNode(f){
+    var warn = document.createElement('div');
+    warn.className = 'warn-card';
+    warn.innerHTML = '<i class="ti ti-alert-triangle" aria-hidden="true"></i><div style="flex:1"><div class="t">Log-style file — per-line toggling not recommended</div><div class="s">'+f+' entries span multiple lines (Decision / Rationale / Status). Toggling a single line can orphan the rest of the entry.</div><div class="actions"><button class="btn btn-sm" data-manage="'+f+'">Manage anyway</button></div></div>';
+    warn.querySelector('[data-manage]').addEventListener('click', function(){ overridden[f] = true; render(); });
+    return warn;
+  }
+
+  function addFile(name){
+    if(!name || files.indexOf(name)>-1) return;
+    files.push(name);
+    if(itemsFor(name).length===0){
+      // no instructions yet for a freshly-added file in this demo
+    }
+    render();
+  }
+
+  function renderSidebar(){
+    var el = document.getElementById('sidebar');
+    el.innerHTML = '';
+    files.forEach(function(f){
+      var c = countsFor(f);
+      var row = document.createElement('div');
+      row.className = 'side-item' + (f===selected?' active':'') + (flagged[f] && !overridden[f] ?' flagged':'');
+      row.innerHTML = '<i class="ti '+iconFor(f)+'" aria-hidden="true"></i><span>'+f+'</span><span class="side-count">'+c.on+'/'+c.total+'</span>';
+      row.addEventListener('click', function(){ selected = f; render(); });
+      el.appendChild(row);
+    });
+    var add = document.createElement('div');
+    add.className = 'side-add';
+    add.innerHTML = '<i class="ti ti-plus" aria-hidden="true"></i><span>Add file</span>';
+    add.addEventListener('click', function(){ sideAddOpen = !sideAddOpen; render(); });
+    el.appendChild(add);
+    if(sideAddOpen){
+      var wrap = document.createElement('div');
+      wrap.className = 'side-add-input open';
+      wrap.innerHTML = '<input type="text" placeholder="docs/ROADMAP.md" id="side-add-field"><button class="btn btn-sm" id="side-add-confirm">Add</button>';
+      el.appendChild(wrap);
+      document.getElementById('side-add-confirm').addEventListener('click', function(){
+        var v = document.getElementById('side-add-field').value.trim();
+        sideAddOpen = false;
+        addFile(v);
+      });
+    }
+  }
+
+  function renderStats(){
+    var on = data.filter(function(d){return d.enabled}).length;
+    var off = data.length - on;
+    document.getElementById('stats').innerHTML = '<b>'+on+' active</b> &middot; <span class="off">'+off+' disabled</span>';
+  }
+
+  function renderList(){
+    var el = document.getElementById('instr-list');
+    el.innerHTML = '';
+    if(flagged[selected] && !overridden[selected]){
+      el.appendChild(warningNode(selected));
+      return;
+    }
+    var q = query();
+    itemsFor(selected).filter(function(d){return matches(d,q)}).forEach(function(d){ el.appendChild(rowNode(d)); });
+  }
+
+  function renderBoard(){
+    var el = document.getElementById('board-row');
+    el.innerHTML = '';
+    var q = query();
+    files.forEach(function(f){
+      var col = document.createElement('div');
+      col.className = 'board-col';
+      var c = countsFor(f);
+      var head = document.createElement('div');
+      head.className = 'board-col-head';
+      var flagBit = flagged[f] && !overridden[f] ? '<span class="flagged-pill"><i class="ti ti-alert-triangle" aria-hidden="true"></i>flagged</span>' : '';
+      head.innerHTML = '<span class="name">'+f+flagBit+'</span><span class="cnt">'+c.on+'/'+c.total+' active</span>';
+      var body = document.createElement('div');
+      body.className = 'board-col-body';
+      if(flagged[f] && !overridden[f]){
+        body.appendChild(warningNode(f));
+      } else {
+        var matched = itemsFor(f).filter(function(d){return matches(d,q)});
+        if(matched.length===0){
+          col.classList.add('empty-match');
+          body.innerHTML = '<div class="board-col-empty">No matches</div>';
+        } else {
+          matched.forEach(function(d){ body.appendChild(rowNode(d)); });
+        }
+      }
+      col.appendChild(head);
+      col.appendChild(body);
+      el.appendChild(col);
+    });
+    var addCol = document.createElement('div');
+    addCol.className = 'board-add-col';
+    addCol.innerHTML = '<i class="ti ti-plus" aria-hidden="true"></i>';
+    addCol.title = 'Add file';
+    addCol.addEventListener('click', function(){
+      var name = prompt('Add a file to manage (e.g. docs/ROADMAP.md):');
+      if(name) addFile(name.trim());
+    });
+    el.appendChild(addCol);
+  }
+
+  function renderArchive(){
+    var body = document.getElementById('archive-body');
+    var off = data.filter(function(d){return !d.enabled});
+    if(off.length===0){
+      body.innerHTML = '<div class="arch-empty">Nothing disabled right now.</div>';
+      return;
+    }
+    body.innerHTML = '';
+    off.forEach(function(d){
+      var row = document.createElement('div');
+      row.className = 'arch-row';
+      row.innerHTML = '<span class="f">'+d.file+'</span><span class="t">'+d.text+'</span>';
+      var btn = document.createElement('button');
+      btn.className = 'arch-restore';
+      btn.textContent = 'Restore';
+      btn.setAttribute('aria-label','Restore instruction: '+d.alias);
+      btn.addEventListener('click', function(){ d.enabled = true; render(); });
+      row.appendChild(btn);
+      body.appendChild(row);
+    });
+  }
+
+  function render(){
+    renderStats();
+    renderArchive();
+    if(viewMode==='list'){ renderSidebar(); renderList(); }
+    else { renderBoard(); }
+  }
+
+  document.getElementById('search').addEventListener('input', render);
+  document.getElementById('archive-toggle').addEventListener('click', function(){
+    archiveOpen = !archiveOpen;
+    document.getElementById('archive-body').style.display = archiveOpen ? 'flex' : 'none';
+    document.getElementById('archive-chev').classList.toggle('open', archiveOpen);
+  });
+  document.getElementById('view-list-btn').addEventListener('click', function(){
+    viewMode='list';
+    document.getElementById('view-list-btn').classList.add('active');
+    document.getElementById('view-board-btn').classList.remove('active');
+    document.getElementById('list-view').style.display='flex';
+    document.getElementById('board-view').style.display='none';
+    render();
+  });
+  document.getElementById('view-board-btn').addEventListener('click', function(){
+    viewMode='board';
+    document.getElementById('view-board-btn').classList.add('active');
+    document.getElementById('view-list-btn').classList.remove('active');
+    document.getElementById('list-view').style.display='none';
+    document.getElementById('board-view').style.display='block';
+    render();
+  });
+  document.getElementById('mode-toggle').addEventListener('click', function(){
+    var root = document.getElementById('morch-root');
+    var light = root.classList.toggle('light-mode');
+    document.getElementById('mode-icon').className = 'ti ' + (light ? 'ti-sun' : 'ti-moon');
+  });
+
+  render();
+})();
+</script>
