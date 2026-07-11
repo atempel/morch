@@ -1,5 +1,5 @@
-// Mirrors src-tauri/src/lib.rs, src-tauri/src/scanner.rs, and src-tauri/src/parser.rs.
-// Schema per docs/FILE_STRUCTURE.md §6.3/§6.4.
+// Mirrors src-tauri/src/lib.rs, src-tauri/src/scanner.rs, src-tauri/src/parser.rs,
+// and src-tauri/src/instructions.rs. Schema per docs/FILE_STRUCTURE.md §6.3/§6.4.
 
 export interface ManagedFile {
   name: string;
@@ -29,4 +29,15 @@ export interface ParsedInstruction {
   file: string;
   lineNumber: number;
   content: string;
+}
+
+// createdAt/disabledAt from FILE_STRUCTURE.md §6.4 are deliberately omitted —
+// see the doc comment on Instruction in instructions.rs.
+export interface Instruction {
+  id: string;
+  file: string;
+  lineNumber: number;
+  content: string;
+  alias: string | null;
+  enabled: boolean;
 }
