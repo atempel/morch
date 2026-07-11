@@ -145,14 +145,35 @@ impl InstructionManager {
     fn enable(&mut self, idx: usize) -> Result<(), String> {
         let file = self.instructions[idx].file.clone();
         let content = self.instructions[idx].content.clone();
-        let alias = self.instructions[idx].alias.clone();
-        let archive_line_number = self.instructions[idx].line_number;
 
         archive::enable_instruction(self.workspace_path.clone(), file.clone(), content.clone(), self.disabled_archive_path.clone())?;
 
+        // archive::enable_instruction removes the *first* line in the archive
+        // mirror matching `content` (content-addressed, not position-addressed
+        // — see archive.rs). If the same file has multiple disabled
+        // instructions with identical content (plausible for log-style files
+        // like DECISIONS.md), that isn't necessarily the entry at `idx` —
+        // find whichever in-memory entry actually has the lowest line_number
+        // among matches, since that's the one `.position()` in archive.rs
+        // would have found first, and pivot the shift/promotion on it instead
+        // of blindly trusting `idx`.
+        let actual_idx = self
+            .instructions
+            .iter()
+            .enumerate()
+            .filter(|(_, i)| !i.enabled && i.file == file && i.content == content)
+            .min_by_key(|(_, i)| i.line_number)
+            .map(|(i, _)| i)
+            .expect("archive::enable_instruction succeeded, so a matching disabled instruction must exist");
+
+        let archive_line_number = self.instructions[actual_idx].line_number;
+        let alias = self.instructions[actual_idx].alias.clone();
+
         // Removing this line from the archive mirror shifts every later
         // disabled line in the same file's mirror up by one; their ids are
-        // position-derived, so they need updating too.
+        // position-derived, so they need updating too. This also correctly
+        // shifts `idx` itself when `idx != actual_idx` (a later duplicate
+        // that stays disabled, just at one lower a position).
         let archive_rel = format!("{}/{}", self.disabled_archive_path, file);
         for instr in self.instructions.iter_mut() {
             if !instr.enabled && instr.file == file && instr.line_number > archive_line_number {
@@ -162,7 +183,7 @@ impl InstructionManager {
         }
 
         let active_position = self.instructions.iter().filter(|i| i.enabled && i.file == file).count() + 1;
-        self.instructions[idx] = Instruction {
+        self.instructions[actual_idx] = Instruction {
             id: format!("line_{active_position}_{file}"),
             file,
             line_number: active_position,
@@ -175,9 +196,29 @@ impl InstructionManager {
     }
 
     pub fn set_alias(&mut self, id: &str, alias: Option<String>) -> Result<(), String> {
-        let instr = self.instructions.iter_mut().find(|i| i.id == id).ok_or_else(|| format!("no instruction with id '{id}'"))?;
+        if !self.instructions.iter().any(|i| i.id == id) {
+            return Err(format!("no instruction with id '{id}'"));
+        }
+
+        // Persist before mutating in-memory state: persist_aliases() rebuilds
+        // the whole map from current state, so if in-memory were updated
+        // first and the write then failed, the "failed" alias would still be
+        // sitting in memory and get silently written by the next unrelated,
+        // successful set_alias call (caught in review before merging M7).
+        let mut prospective_aliases = self.instruction_aliases();
+        match &alias {
+            Some(value) => {
+                prospective_aliases.insert(id.to_string(), value.clone());
+            }
+            None => {
+                prospective_aliases.remove(id);
+            }
+        }
+        self.persist_aliases(&prospective_aliases)?;
+
+        let instr = self.instructions.iter_mut().find(|i| i.id == id).expect("existence already checked above");
         instr.alias = alias;
-        self.persist_aliases()
+        Ok(())
     }
 
     /// Current alias map keyed by each instruction's *live* id — since ids
@@ -196,11 +237,11 @@ impl InstructionManager {
     // defined twice at their own definition site, reproducible even via a
     // fully-qualified call with no `use` import). Duplicating four lines of
     // file I/O here was simpler than chasing that further.
-    fn persist_aliases(&self) -> Result<(), String> {
+    fn persist_aliases(&self, aliases: &HashMap<String, String>) -> Result<(), String> {
         let config_path = PathBuf::from(&self.workspace_path).join(".morch").join("config.json");
         let contents = fs::read_to_string(&config_path).map_err(|e| format!("failed to read {}: {}", config_path.display(), e))?;
         let mut config: crate::MorchConfig = serde_json::from_str(&contents).map_err(|e| format!("failed to parse config: {}", e))?;
-        config.instruction_aliases = self.instruction_aliases();
+        config.instruction_aliases = aliases.clone();
         let serialized = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
         fs::write(&config_path, serialized).map_err(|e| format!("failed to write {}: {}", config_path.display(), e))
     }
@@ -434,6 +475,86 @@ mod tests {
         assert!(!disabled.enabled);
         assert_ne!(disabled.id, original_id, "id is position-derived and changes on toggle");
         assert_eq!(disabled.alias, Some("keep-me".to_string()), "alias carries over with the in-memory slot");
+    }
+
+    #[test]
+    fn enabling_with_duplicate_content_in_the_archive_keeps_bookkeeping_consistent_with_disk() {
+        // archive::enable_instruction removes the *first* matching-content
+        // line, which may not be the in-memory entry the caller named if the
+        // same file has multiple disabled instructions with identical
+        // content (plausible for log-style files like DECISIONS.md).
+        let ws = TempWorkspace::new("enable-duplicate-content");
+        fs::create_dir_all(ws.path.join(ARCHIVE_DIR)).unwrap();
+        fs::write(ws.path.join(ARCHIVE_DIR).join("CLAUDE.md"), "dup\nunique\ndup\n").unwrap();
+        fs::write(ws.path.join("CLAUDE.md"), "active line\n").unwrap();
+
+        let mut manager =
+            InstructionManager::load(ws.workspace_path(), &[managed("CLAUDE.md")], &HashMap::new(), ARCHIVE_DIR.to_string()).unwrap();
+
+        // Target the *second* "dup" (line_number 3) — archive.rs will still
+        // physically remove the *first* one (line_number 1).
+        let second_dup_id =
+            manager.instructions().iter().filter(|i| i.content == "dup").max_by_key(|i| i.line_number).unwrap().id.clone();
+        manager.toggle(&second_dup_id).unwrap();
+
+        // Disk: the first "dup" (line 1) was removed from the archive mirror,
+        // leaving "unique" then "dup" — and "dup" appended to the active file.
+        let archive_contents = fs::read_to_string(ws.path.join(ARCHIVE_DIR).join("CLAUDE.md")).unwrap();
+        assert_eq!(archive_contents, "unique\ndup\n");
+        let active_contents = fs::read_to_string(ws.path.join("CLAUDE.md")).unwrap();
+        assert_eq!(active_contents, "active line\ndup\n");
+
+        // In-memory model must match that exactly: 1 active line (original) +
+        // 3 disabled lines (original) = 4 total, unchanged by a toggle;
+        // 2 now enabled ("active line" + the promoted "dup").
+        assert_eq!(manager.counts("CLAUDE.md"), (2, 4));
+        let remaining_disabled: Vec<_> = manager.instructions().iter().filter(|i| !i.enabled && i.content == "dup").collect();
+        assert_eq!(remaining_disabled.len(), 1, "exactly one dup instruction stays disabled");
+        assert_eq!(remaining_disabled[0].line_number, 2, "shifted down from 3 to 2 after the first dup (line 1) was removed");
+
+        let unique = manager.instructions().iter().find(|i| i.content == "unique").unwrap();
+        assert!(!unique.enabled);
+        assert_eq!(unique.line_number, 1, "also shifted down from its original archive position of 2");
+    }
+
+    #[test]
+    fn set_alias_does_not_persist_when_config_write_fails() {
+        let ws = TempWorkspace::new("set-alias-failure");
+        fs::write(ws.path.join("CLAUDE.md"), "line one\nline two\n").unwrap();
+        // Deliberately no .morch/config.json written — persist_aliases will fail.
+
+        let mut manager =
+            InstructionManager::load(ws.workspace_path(), &[managed("CLAUDE.md")], &HashMap::new(), ARCHIVE_DIR.to_string()).unwrap();
+        let first_id = manager.instructions()[0].id.clone();
+        let second_id = manager.instructions()[1].id.clone();
+
+        let result = manager.set_alias(&first_id, Some("should-not-stick".to_string()));
+        assert!(result.is_err(), "persist should fail with no config.json on disk");
+        assert_eq!(
+            manager.instructions().iter().find(|i| i.id == first_id).unwrap().alias,
+            None,
+            "a failed persist must not leave the in-memory alias applied"
+        );
+
+        // Now make persistence possible and set an unrelated alias — this
+        // must not silently resurrect the alias from the failed call above.
+        write_test_config(
+            &ws,
+            &crate::MorchConfig {
+                version: "1.0".to_string(),
+                workspace_path: ws.workspace_path(),
+                managed_files: vec![managed("CLAUDE.md")],
+                instruction_aliases: HashMap::new(),
+                disabled_archive_path: ARCHIVE_DIR.to_string(),
+                last_scan_time: None,
+            },
+        );
+        manager.set_alias(&second_id, Some("legit-alias".to_string())).unwrap();
+
+        let persisted = read_test_config(&ws);
+        assert_eq!(persisted.instruction_aliases.len(), 1, "only the successful alias should be persisted");
+        assert_eq!(persisted.instruction_aliases.get(&second_id), Some(&"legit-alias".to_string()));
+        assert_eq!(persisted.instruction_aliases.get(&first_id), None, "the earlier failed alias must not have been resurrected");
     }
 
     #[test]
