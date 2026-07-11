@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/logo-morch-dark-transparent.svg">
-    <source media="(prefers-color-scheme: light)" srcset="brand/logo-morch-light-transparent.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="brand/logo-morch-light-transparent.svg">
+    <source media="(prefers-color-scheme: light)" srcset="brand/logo-morch-dark-transparent.svg">
     <img src="brand/logo-morch-light-transparent.svg" alt="Morch" width="320">
   </picture>
 </p>
