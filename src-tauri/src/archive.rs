@@ -73,7 +73,9 @@ fn write_lines(path: &Path, lines: &[&str]) -> Result<(), String> {
     if !lines.is_empty() {
         joined.push('\n');
     }
-    fs::write(path, joined).map_err(|e| format!("failed to write {}: {}", path.display(), e))
+    fs::write(path, &joined).map_err(|e| format!("failed to write {}: {}", path.display(), e))?;
+    crate::watcher::record_self_write(path, &joined);
+    Ok(())
 }
 
 fn append_line(path: &Path, line: &str) -> Result<(), String> {
@@ -86,7 +88,9 @@ fn append_line(path: &Path, line: &str) -> Result<(), String> {
     }
     contents.push_str(line);
     contents.push('\n');
-    fs::write(path, contents).map_err(|e| format!("failed to write {}: {}", path.display(), e))
+    fs::write(path, &contents).map_err(|e| format!("failed to write {}: {}", path.display(), e))?;
+    crate::watcher::record_self_write(path, &contents);
+    Ok(())
 }
 
 #[cfg(test)]

@@ -18,7 +18,7 @@ When AI workspaces grow large, instructions accumulate across multiple markdown 
 
 ## Project Status
 
-**Phase**: In development — M1–M5 complete (Tauri v2 + React scaffold, workspace scanner, onboarding, parser, disabled-archive manager). Framework, PRD, visual identity (Nord, dual-tone), and dashboard interaction design (List + Board views, onboarding, disabled-instruction archive, ignored-files drawer) are all locked and validated via an interactive prototype. See the [Development](#development) section below and `docs/IMPLEMENTATION_PLAN.md` for the remaining milestones (M6–M10).
+**Phase**: In development — M1–M6 complete (Tauri v2 + React scaffold, workspace scanner, onboarding, parser, disabled-archive manager, file watcher). Framework, PRD, visual identity (Nord, dual-tone), and dashboard interaction design (List + Board views, onboarding, disabled-instruction archive, ignored-files drawer) are all locked and validated via an interactive prototype. See the [Development](#development) section below and `docs/IMPLEMENTATION_PLAN.md` for the remaining milestones (M7–M10).
 **Scope**: Phase One — instruction management only (see `docs/SPEC.md` §7)
 
 ## Structure
@@ -58,7 +58,7 @@ Framework is locked in (Tauri v2 for the app shell; JSON-only persistence for Ph
 
 ## Development
 
-**Status**: M1–M5 complete — Tauri v2 + React + TypeScript scaffold, JSON-only config (`.morch/config.json`, schema per `docs/FILE_STRUCTURE.md` §6.3), a read-only workspace scanner (`scan_workspace`) that detects candidate markdown files and flags log-style ones (e.g. DECISIONS.md), a working onboarding wizard (choose workspace → review checklist → save config), a line-based markdown parser (`parse_file`) validated against this project's own CLAUDE.md/AGENTS.md per `docs/PARSING_VALIDATION.md`, and a disabled-archive manager (`disable_instruction`/`enable_instruction`) that moves lines to/from a mirrored `.morch-disabled/` structure with a verified zero-data-loss round trip. No dashboard UI yet; see `docs/IMPLEMENTATION_PLAN.md` for remaining milestones (M6–M10).
+**Status**: M1–M6 complete — Tauri v2 + React + TypeScript scaffold, JSON-only config (`.morch/config.json`, schema per `docs/FILE_STRUCTURE.md` §6.3), a read-only workspace scanner (`scan_workspace`) that detects candidate markdown files and flags log-style ones (e.g. DECISIONS.md), a working onboarding wizard (choose workspace → review checklist → save config), a line-based markdown parser (`parse_file`) validated against this project's own CLAUDE.md/AGENTS.md per `docs/PARSING_VALIDATION.md`, a disabled-archive manager (`disable_instruction`/`enable_instruction`) that moves lines to/from a mirrored `.morch-disabled/` structure with a verified zero-data-loss round trip, and a debounced, hash-based file watcher (`watch_managed_files`) that detects external edits to managed files without re-triggering on the app's own writes (see `DECISIONS.md`, 2026-07-11). No dashboard UI yet; see `docs/IMPLEMENTATION_PLAN.md` for remaining milestones (M7–M10).
 
 ```sh
 npm install       # install frontend deps

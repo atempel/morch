@@ -1,11 +1,14 @@
 mod archive;
 mod parser;
 mod scanner;
+mod watcher;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
+use tauri::{Emitter, Manager};
 
 // Schema per docs/FILE_STRUCTURE.md §6.3.
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -57,11 +60,40 @@ fn write_config(workspace_path: String, config: MorchConfig) -> Result<(), Strin
         .map_err(|e| format!("failed to write {}: {}", config_path.display(), e))
 }
 
+/// Holds the live filesystem watcher so it isn't dropped (and thus stopped)
+/// after `watch_managed_files` returns. Replacing it (e.g. when the managed
+/// file list changes) stops the previous watch as a side effect of the drop.
+#[derive(Default)]
+struct WatcherState(Mutex<Option<notify::RecommendedWatcher>>);
+
+/// Starts watching the workspace's managed files for external changes.
+/// Emits a `morch://external-change` event (payload: the changed file's
+/// path, relative to `workspace_path`) for genuine external edits, while
+/// filtering out the app's own toggle-driven writes (see watcher.rs).
+#[tauri::command]
+fn watch_managed_files(app: tauri::AppHandle, workspace_path: String, managed_files: Vec<String>) -> Result<(), String> {
+    let root = PathBuf::from(&workspace_path);
+    let paths: Vec<PathBuf> = managed_files.iter().map(|f| root.join(f)).collect();
+
+    let app_handle = app.clone();
+    let root_for_events = root.clone();
+    let new_watcher = watcher::start_watching(paths, move |path| {
+        let relative = path.strip_prefix(&root_for_events).unwrap_or(&path).to_string_lossy().to_string();
+        let _ = app_handle.emit("morch://external-change", relative);
+    })
+    .map_err(|e| e.to_string())?;
+
+    let state = app.state::<WatcherState>();
+    *state.0.lock().unwrap() = Some(new_watcher);
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(WatcherState::default())
         .invoke_handler(tauri::generate_handler![
             config_exists,
             read_config,
@@ -69,7 +101,8 @@ pub fn run() {
             scanner::scan_workspace,
             parser::parse_file,
             archive::disable_instruction,
-            archive::enable_instruction
+            archive::enable_instruction,
+            watch_managed_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
