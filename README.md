@@ -18,7 +18,7 @@ When AI workspaces grow large, instructions accumulate across multiple markdown 
 
 <p align="center">
   <picture>
-    <img src="brand/app-preview.png" alt="Morch Preview">
+    <img src="brand/app-preview.png" alt="Morch Preview" width="640">
   </picture>
 </p>
 
