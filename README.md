@@ -65,3 +65,7 @@ npm install       # install frontend deps
 npm run tauri dev # run the app in dev mode
 cd src-tauri && cargo test  # run Rust tests (includes the config read/write round-trip test)
 ```
+
+---
+
+<p align="center">Made with ❤️ in Brazil 🇧🇷</p>
