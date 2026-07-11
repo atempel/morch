@@ -76,8 +76,10 @@ fn watch_managed_files(app: tauri::AppHandle, workspace_path: String, managed_fi
     let paths: Vec<PathBuf> = managed_files.iter().map(|f| root.join(f)).collect();
 
     let app_handle = app.clone();
+    let root_for_events = root.clone();
     let new_watcher = watcher::start_watching(paths, move |path| {
-        let _ = app_handle.emit("morch://external-change", path.to_string_lossy().to_string());
+        let relative = path.strip_prefix(&root_for_events).unwrap_or(&path).to_string_lossy().to_string();
+        let _ = app_handle.emit("morch://external-change", relative);
     })
     .map_err(|e| e.to_string())?;
 
