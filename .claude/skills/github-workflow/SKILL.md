@@ -55,3 +55,17 @@ anything scriptable (issues, PRs, repo settings).
 
 Track progress against `docs/IMPLEMENTATION_PLAN.md`'s M1–M10. If using issues per
 milestone, reference the milestone ID (M6, M7, ...) in the title via `gh issue create`.
+
+## Cowork's docs-only workflow
+
+Alexandre also edits this repo from Claude (Cowork mode), separately from Claude Code
+sessions. Cowork is scoped to documentation only — `docs/`, `DECISIONS.md`, `README.md`,
+`CLAUDE.md`, `BRAND.md`, `brand/`, skill files like this one — never `src/` or `src-tauri/`.
+
+Cowork commits through a persistent `cowork-docs` branch (created 2026-07-13) using git
+plumbing (`hash-object`/`read-tree`/`commit-tree`/`update-ref`) rather than a checked-out
+worktree, since `git worktree add` and `git clone` aren't reliable in its sandbox (both have
+corrupted `.git/config` there). It pushes using a fine-grained GitHub PAT — Contents and
+Issues, read/write, scoped to this repo only — stored locally at `.morch-cowork-token`
+(gitignored, never committed, never displayed in chat). If you see that file in the repo
+root, it's expected — don't delete it without checking with Alexandre first.

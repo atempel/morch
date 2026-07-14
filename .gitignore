@@ -34,3 +34,8 @@ src-tauri/gen/schemas
 # fixture) is intentionally NOT covered by this and stays tracked.
 .morch/config.json
 .morch-disabled/
+
+# Cowork's local git push credential (fine-grained GitHub PAT, contents +
+# issues read/write, scoped to this repo only) — lives only on disk here,
+# never committed. See .claude/skills/github-workflow/SKILL.md.
+.morch-cowork-token
