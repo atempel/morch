@@ -69,6 +69,7 @@ Framework is locked in (Tauri v2 for the app shell; JSON-only persistence for Ph
 ```sh
 npm install       # install frontend deps
 npm run tauri dev # run the app in dev mode
+npm run storybook # isolated component dev (src/dashboard, src/onboarding) — see .claude/skills/storybook/SKILL.md
 cd src-tauri && cargo test  # run Rust tests (includes the config read/write round-trip test)
 ```
 

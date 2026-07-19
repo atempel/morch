@@ -18,6 +18,7 @@ This project is the specification and eventual implementation of Morch — a des
 - Any architectural choice (framework, storage format, sync strategy) should be logged in `DECISIONS.md` with rationale.
 - When editing docs, keep terminology consistent: "instruction" (a single toggleable unit), "managed file" (a file the app tracks), "disabled archive" (where toggled-off instructions live).
 - Version control: see `.claude/skills/github-workflow/SKILL.md` for branch strategy, commit conventions, and when to update `DECISIONS.md` alongside a git change.
+- UI component work (`src/dashboard/`, `src/onboarding/`): see `.claude/skills/storybook/SKILL.md` before adding or changing a component.
 
 ## Open Research Questions
 

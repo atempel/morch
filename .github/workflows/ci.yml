@@ -17,6 +17,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx tsc --noEmit
+      - name: Install Playwright browser (for Storybook's vitest addon)
+        run: npx playwright install --with-deps chromium
+      - run: npx vitest --project storybook run
+      - run: npx storybook build
 
   rust:
     runs-on: ubuntu-latest

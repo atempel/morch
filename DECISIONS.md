@@ -211,3 +211,23 @@ Two explicit exclusions, confirmed with the user: (1) Figma's header shows 3 sma
 **Not done in this pass (ran out of session budget)**: Figma also depicts onboarding as a 3-screen flow — today's `WorkspaceStep` (unlabeled in Figma's numbering) → `ChecklistStep` (Figma: "STEP 1 OF 2", restyled callout/row layout) → a new **Review & Confirm** screen ("STEP 2 OF 2": lists selected files, an explanatory callout, Back + "Open dashboard" buttons, and is what actually calls `write_config`) that doesn't exist yet. `docs/Nova pasta/`'s prototypes and this DECISIONS.md entry are the handoff notes for whoever picks this up — the exact spec (padding/colors/copy) was already pulled via Figma's `get_design_context` during this session and is worth re-fetching rather than re-deriving from screenshots alone.
 
 **Status**: Dashboard visual rework (header/toolbar/sidebar/instruction rows/board/drawers) done and screenshot-verified against a real `tauri dev` window. Onboarding's 3-step rework is the known remaining gap — tracked, not forgotten.
+
+---
+
+## 2026-07-19 — Storybook adopted; Tauri APIs mocked via Vite alias, not a wrapper module
+
+**Decision**: Storybook (`@storybook/react-vite`, matching the project's existing Vite builder) is now part of the dev tooling stack, with stories co-located as `*.stories.tsx` next to the component they cover. `Dashboard.tsx` and `Onboarding.tsx` are the only two components that call Tauri APIs directly (`invoke` from `@tauri-apps/api/core`, `listen` from `@tauri-apps/api/event`, `open` from `@tauri-apps/plugin-dialog`); the other `src/dashboard/`/`src/onboarding/` components are plain presentational components taking props. `.storybook/main.ts`'s `viteFinal` aliases those three import paths to canned-response stubs under `.storybook/mocks/` — production component code is unchanged.
+
+**Rationale**: This was flagged as the one real architectural choice in `docs/STORYBOOK_PLAN.md` Step 2, with two options: alias the imports at the Vite config level (zero production code changes), or extract an `src/lib/tauriApi.ts` wrapper that `Dashboard.tsx`/`Onboarding.tsx` import instead, then mock that module. With only three call sites across two files, a wrapper module's indirection wasn't earning its keep yet — the alias approach gets the same isolation with less surface area. Revisit the wrapper approach if Tauri call sites grow enough that greppability of the mock boundary starts to matter more than the extra indirection costs.
+
+**Status**: Locked in. 10 story files written for `src/dashboard/`'s and `src/onboarding/`'s presentational components plus `Onboarding.tsx` (the one `invoke`-calling container storied so far, proving the mock end-to-end); `Dashboard.tsx` itself is left for a follow-up pass. All pass `npx vitest --project storybook run` and `npx tsc --noEmit`.
+
+---
+
+## 2026-07-19 — Storybook MCP server (`@storybook/addon-mcp`) added as a project-scoped MCP server
+
+**Decision**: `@storybook/addon-mcp` is installed and enabled (all three toolsets — dev, docs, test — on by default) and registered as a project-scoped MCP server via `.mcp.json` (`http://localhost:6006/mcp`, served by the Storybook dev server itself — not a standalone process). `CLAUDE.md`, `AGENTS.md`, and a new `.claude/skills/storybook/SKILL.md` were updated so agents working in this repo know to reach for it (e.g. `list-all-documentation` before re-deriving a component's prop shape, `run-story-tests` before considering UI work done).
+
+**Rationale**: Per `docs/STORYBOOK_PLAN.md` Step 6 — this is explicitly a **preview** Storybook feature, React+Vite-only (matches this project's stack) and its API may still change before GA, but it's purpose-built for exactly the kind of UI iteration M8's dashboard rework needed, and there was no MCP server configured in this repo at all before this. `.mcp.json` is committed (not gitignored), matching the "shared project configuration, not machine-specific state" logic `.claude/skills/github-workflow/SKILL.md` already applies to `.claude/settings.json`.
+
+**Status**: Locked in for now, preview-feature caveat noted. Verified the MCP endpoint responds correctly (manual `initialize` handshake against a running `npm run storybook`) before committing.

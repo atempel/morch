@@ -34,3 +34,6 @@ src-tauri/gen/schemas
 # fixture) is intentionally NOT covered by this and stays tracked.
 .morch/config.json
 .morch-disabled/
+
+*storybook.log
+storybook-static
