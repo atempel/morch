@@ -1,0 +1,81 @@
+import { useState } from "react";
+import type { Instruction, ScannedFile } from "../types";
+import InstructionRow from "./InstructionRow";
+import WarningCard from "./WarningCard";
+
+interface BoardColumnProps {
+  path: string;
+  instructions: Instruction[];
+  search: string;
+  flagged: ScannedFile | undefined;
+  acknowledged: boolean;
+  onAcknowledgeFlag: () => void;
+  onToggle: (id: string) => void;
+  onSetAlias: (id: string, alias: string | null) => void;
+  onIgnoreFile: (path: string) => void;
+}
+
+function matchesSearch(instr: Instruction, search: string): boolean {
+  if (!search.trim()) return true;
+  const needle = search.trim().toLowerCase();
+  return instr.content.toLowerCase().includes(needle) || (instr.alias?.toLowerCase().includes(needle) ?? false);
+}
+
+export default function BoardColumn({
+  path,
+  instructions,
+  search,
+  flagged,
+  acknowledged,
+  onAcknowledgeFlag,
+  onToggle,
+  onSetAlias,
+  onIgnoreFile,
+}: BoardColumnProps) {
+  const [scrolled, setScrolled] = useState(false);
+
+  const forFile = instructions.filter((i) => i.file === path && i.enabled);
+  const matching = forFile.filter((i) => matchesSearch(i, search));
+  const total = forFile.length;
+  const showWarning = flagged?.flagged && !acknowledged;
+
+  return (
+    <div className="board-column">
+      <div className={`column-header ${scrolled ? "column-header-scrolled" : ""}`}>
+        {flagged?.flagged && (
+          <span className="nav-item-flagged" title="Log-style file — flagged">
+            ⚑
+          </span>
+        )}
+        <span className="column-header-name">{path}</span>
+        <span className="meta-text">
+          {matching.length}/{total}
+        </span>
+        <button
+          type="button"
+          className="ignore-control"
+          onClick={() => onIgnoreFile(path)}
+          title="Ignore this file"
+          aria-label={`Ignore ${path}`}
+        >
+          ⊘
+        </button>
+      </div>
+
+      {matching.length === 0 && !showWarning ? null : (
+        <div
+          className="board-column-body"
+          onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 0)}
+        >
+          {showWarning && flagged?.flagReason ? (
+            <WarningCard reason={flagged.flagReason} onManageAnyway={onAcknowledgeFlag} />
+          ) : (
+            matching.map((instr) => (
+              <InstructionRow key={instr.id} instruction={instr} onToggle={onToggle} onSetAlias={onSetAlias} />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

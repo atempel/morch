@@ -1,9 +1,8 @@
 /*
  * Design tokens per DESIGN.md. Dark mode is canonical/default (see DESIGN.md
- * Overview) and is the only theme wired up so far — the light/dark toggle
- * itself is M8 (Dashboard UI) scope, not built yet. Component CSS should
- * reference these custom properties, never raw hex values, so adding the
- * light-mode override block later is a single, isolated change.
+ * Overview). Light mode is a `[data-theme="light"]` override block below —
+ * component CSS should only ever reference the semantic custom properties
+ * (never raw --n* values) so this stays the single point of change.
  */
 :root {
   /* Nord source swatches (also load-bearing for future light-mode mapping) */
@@ -44,6 +43,7 @@
   --text-secondary: var(--n4);
   --text-muted: var(--text-muted-dark);
   --primary: var(--n8);
+  --primary-text: var(--n8);
   --secondary: var(--n9);
   --success: var(--n14);
   --warning: var(--n13);
@@ -67,4 +67,28 @@
 
   --font-sans: "Noto Sans", -apple-system, system-ui, sans-serif;
   --font-mono: "Noto Sans Mono", "SF Mono", Consolas, monospace;
+}
+
+/*
+ * Light mode — per DESIGN.md's "Light mode mapping" table. Only the roles
+ * that table documents are taken from it directly (background, surface,
+ * surface-raised, text-*, primary); Aurora status colors and the on-*
+ * text-on-fill colors are explicitly "unchanged" per that table. A few
+ * roles (surface-overlay, border, border-strong, secondary) have no light
+ * row in DESIGN.md — see the M8 session log for the reasoning behind the
+ * values picked here; flagged there for a deliberate look rather than
+ * treated as settled.
+ */
+[data-theme="light"] {
+  --background: var(--n6);
+  --surface: var(--n5);
+  --surface-raised: var(--n4);
+  --surface-overlay: var(--n3);
+  --border: var(--n3);
+  --border-strong: var(--n2);
+  --text-primary: var(--n0);
+  --text-secondary: var(--n1);
+  --text-muted: var(--n3);
+  --primary: var(--n10);
+  --primary-text: var(--primary-text-light);
 }
