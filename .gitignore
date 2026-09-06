@@ -39,3 +39,8 @@ src-tauri/gen/schemas
 # issues read/write, scoped to this repo only) — lives only on disk here,
 # never committed. See .claude/skills/github-workflow/SKILL.md.
 .morch-cowork-token
+
+# Automated/scheduled coding-session logs (what was done, why, and any
+# blockers) — local working notes, not project documentation. Never
+# versioned; kept out of GitHub entirely per the automation's instructions.
+session-logs/

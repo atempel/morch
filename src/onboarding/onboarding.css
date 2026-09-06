@@ -67,54 +67,6 @@ h2 {
   gap: var(--space-sm);
 }
 
-.text-input {
-  flex: 1;
-  background-color: var(--surface-raised);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-md);
-  padding: 8px 10px;
-  font-family: var(--font-sans);
-  font-size: 13px;
-}
-
-.text-input:focus {
-  outline: 1px solid var(--primary);
-  outline-offset: -1px;
-}
-
-.button-primary,
-.button-secondary {
-  border-radius: var(--rounded-md);
-  padding: 8px 14px;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-}
-
-.button-primary {
-  background-color: var(--primary);
-  color: var(--on-primary);
-}
-
-.button-primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
-}
-
-.button-secondary {
-  background-color: var(--surface-raised);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-}
-
-.button-primary:disabled,
-.button-secondary:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .onboarding-actions {
   display: flex;
   justify-content: flex-end;
