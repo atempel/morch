@@ -2,6 +2,7 @@ import type { Instruction, ScannedFile } from "../types";
 import InstructionRow from "./InstructionRow";
 import WarningCard from "./WarningCard";
 import DisabledArchiveDrawer from "./DisabledArchiveDrawer";
+import { matchesSearch } from "./search";
 
 interface MainPaneProps {
   selectedFile: string | null;
@@ -12,12 +13,6 @@ interface MainPaneProps {
   onAcknowledgeFlag: () => void;
   onToggle: (id: string) => void;
   onSetAlias: (id: string, alias: string | null) => void;
-}
-
-function matchesSearch(instr: Instruction, search: string): boolean {
-  if (!search.trim()) return true;
-  const needle = search.trim().toLowerCase();
-  return instr.content.toLowerCase().includes(needle) || (instr.alias?.toLowerCase().includes(needle) ?? false);
 }
 
 export default function MainPane({

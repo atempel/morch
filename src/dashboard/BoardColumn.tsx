@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Instruction, ScannedFile } from "../types";
 import InstructionRow from "./InstructionRow";
 import WarningCard from "./WarningCard";
+import { matchesSearch } from "./search";
 
 interface BoardColumnProps {
   path: string;
@@ -13,12 +14,6 @@ interface BoardColumnProps {
   onToggle: (id: string) => void;
   onSetAlias: (id: string, alias: string | null) => void;
   onIgnoreFile: (path: string) => void;
-}
-
-function matchesSearch(instr: Instruction, search: string): boolean {
-  if (!search.trim()) return true;
-  const needle = search.trim().toLowerCase();
-  return instr.content.toLowerCase().includes(needle) || (instr.alias?.toLowerCase().includes(needle) ?? false);
 }
 
 export default function BoardColumn({
@@ -34,9 +29,10 @@ export default function BoardColumn({
 }: BoardColumnProps) {
   const [scrolled, setScrolled] = useState(false);
 
-  const forFile = instructions.filter((i) => i.file === path && i.enabled);
-  const matching = forFile.filter((i) => matchesSearch(i, search));
-  const total = forFile.length;
+  const allForFile = instructions.filter((i) => i.file === path);
+  const enabledForFile = allForFile.filter((i) => i.enabled);
+  const matching = enabledForFile.filter((i) => matchesSearch(i, search));
+  const total = allForFile.length;
   const showWarning = flagged?.flagged && !acknowledged;
 
   return (
@@ -49,7 +45,7 @@ export default function BoardColumn({
         )}
         <span className="column-header-name">{path}</span>
         <span className="meta-text">
-          {matching.length}/{total}
+          {enabledForFile.length}/{total}
         </span>
         <button
           type="button"

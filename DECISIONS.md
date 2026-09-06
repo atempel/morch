@@ -212,4 +212,4 @@ One practical consequence: an alias assigned to an instruction persists across a
 
 **Rationale**: `docs/IMPLEMENTATION_PLAN.md`'s M8 acceptance bar ("every component in DESIGN.md's Components section exists and matches its documented token usage") requires a complete, working token set and a working drawer — DESIGN.md's gaps couldn't be left as literal blanks. Each choice above extends an existing, explicit pattern already stated in DESIGN.md (the four-step elevation logic, single-file List view framing, Phase One's un-persisted ephemeral-state precedent) rather than introducing a new one.
 
-**Status**: Locked in for Phase One, flagged for a deliberate look (e.g. re-running `npx @google/design.md lint` and a manual pass over `DESIGN.md`) rather than treated as unquestionably final — see `session-logs/2026-09-06-m8-dashboard-ui.md` for the full build notes.
+**Status**: Locked in for Phase One, flagged for a deliberate look (e.g. re-running `npx @google/design.md lint` and a manual pass over `DESIGN.md`) rather than treated as unquestionably final.

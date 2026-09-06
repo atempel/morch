@@ -74,11 +74,30 @@ export default function Dashboard({ config, onConfigChange }: DashboardProps) {
     setSelectedFile(managedFiles[0]?.path ?? null);
   }, [managedFiles, selectedFile]);
 
+  // `set_instruction_alias` (Rust) persists aliases straight to
+  // .morch/config.json itself, independently of this component's `config`
+  // prop — it never round-trips through `onConfigChange`. So `config`
+  // here can be stale on `instructionAliases` by the time any other
+  // config-mutating action (ignore/restore/add a file) runs, and blindly
+  // writing `next` (spread from that stale `config`) would clobber the
+  // alias Rust already wrote. `instructions` state is always fresh (every
+  // load/toggle/alias call replaces it wholesale from the backend), so
+  // every write here rebuilds `instructionAliases` from it instead of
+  // trusting whatever `config.instructionAliases` currently holds — the
+  // same "rebuild from live state" approach `persist_aliases` uses on the
+  // Rust side. Caught in review before merging M8.
+  function currentAliasMap(): Record<string, string> {
+    const aliases: Record<string, string> = {};
+    for (const i of instructions) if (i.alias) aliases[i.id] = i.alias;
+    return aliases;
+  }
+
   async function persistConfig(next: MorchConfig) {
+    const toWrite: MorchConfig = { ...next, instructionAliases: currentAliasMap() };
     try {
-      await invoke("write_config", { workspacePath: next.workspacePath, config: next });
-      onConfigChange(next);
-      await reloadInstructions(next);
+      await invoke("write_config", { workspacePath: toWrite.workspacePath, config: toWrite });
+      onConfigChange(toWrite);
+      await reloadInstructions(toWrite);
     } catch (e) {
       setError(String(e));
     }
@@ -94,7 +113,15 @@ export default function Dashboard({ config, onConfigChange }: DashboardProps) {
 
   function addFile(path: string) {
     const trimmed = path.trim();
-    if (!trimmed || config.managedFiles.some((f) => f.path === trimmed)) return;
+    if (!trimmed) return;
+    const existing = config.managedFiles.find((f) => f.path === trimmed);
+    if (existing) {
+      // Already managed — if it's ignored, "add" restores it rather than
+      // silently no-opping (the file being ignored isn't visible from
+      // this control, so a silent no-op would look like a bug).
+      if (!existing.enabled) updateManagedFile(trimmed, { enabled: true });
+      return;
+    }
     const next: MorchConfig = {
       ...config,
       managedFiles: [...config.managedFiles, { name: trimmed, path: trimmed, enabled: true }],
