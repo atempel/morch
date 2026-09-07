@@ -557,6 +557,77 @@ mod tests {
         assert_eq!(persisted.instruction_aliases.get(&first_id), None, "the earlier failed alias must not have been resurrected");
     }
 
+    // M10 QA pass (docs/IMPLEMENTATION_PLAN.md, SPEC.md §9, GitHub issue #6):
+    // "a disabled instruction is genuinely invisible to the AI" and "zero data
+    // loss across repeated toggle cycles" verified here as automated tests
+    // rather than manual spot-checking, per the milestone's acceptance bar.
+
+    #[test]
+    fn disabled_instruction_is_genuinely_absent_from_the_file_an_ai_would_read() {
+        let ws = TempWorkspace::new("ai-invisibility");
+        fs::write(ws.path.join("CLAUDE.md"), "keep this\nsecret internal note\nkeep that\n").unwrap();
+
+        let mut manager =
+            InstructionManager::load(ws.workspace_path(), &[managed("CLAUDE.md")], &HashMap::new(), ARCHIVE_DIR.to_string()).unwrap();
+        let target_id = manager.instructions().iter().find(|i| i.content == "secret internal note").unwrap().id.clone();
+        manager.toggle(&target_id).unwrap();
+
+        // This is exactly what an AI agent reading the managed file would see —
+        // Core Principle #3 (CLAUDE.md) is the product promise being checked.
+        let ai_visible_contents = fs::read_to_string(ws.path.join("CLAUDE.md")).unwrap();
+        assert!(
+            !ai_visible_contents.contains("secret internal note"),
+            "a disabled instruction must be genuinely invisible to the AI-facing file"
+        );
+        assert!(ai_visible_contents.contains("keep this") && ai_visible_contents.contains("keep that"));
+
+        // It must still be readable by the user via the archive, per SPEC.md §3.6.
+        let archived_contents = fs::read_to_string(ws.path.join(ARCHIVE_DIR).join("CLAUDE.md")).unwrap();
+        assert!(archived_contents.contains("secret internal note"));
+    }
+
+    #[test]
+    fn toggling_every_instruction_off_and_on_fifty_times_causes_zero_data_loss() {
+        let ws = TempWorkspace::new("stress-cycle");
+        let original = "line one\nline two\nline three\nline four\n";
+        fs::write(ws.path.join("CLAUDE.md"), original).unwrap();
+
+        let mut manager =
+            InstructionManager::load(ws.workspace_path(), &[managed("CLAUDE.md")], &HashMap::new(), ARCHIVE_DIR.to_string()).unwrap();
+        let mut original_lines: Vec<&str> = original.lines().collect();
+        original_lines.sort();
+
+        for cycle in 0..50 {
+            // Disable every currently-enabled instruction, fetching ids fresh
+            // each time rather than caching them — ids are position-derived
+            // (see DECISIONS.md, 2026-07-11) and shift as siblings are removed.
+            while let Some(id) =
+                manager.instructions().iter().find(|i| i.file == "CLAUDE.md" && i.enabled).map(|i| i.id.clone())
+            {
+                manager.toggle(&id).unwrap();
+            }
+
+            let active_contents = fs::read_to_string(ws.path.join("CLAUDE.md")).unwrap();
+            assert!(active_contents.trim().is_empty(), "cycle {cycle}: every instruction should be disabled and gone from the active file");
+
+            // Restore every disabled instruction.
+            while let Some(id) =
+                manager.instructions().iter().find(|i| i.file == "CLAUDE.md" && !i.enabled).map(|i| i.id.clone())
+            {
+                manager.toggle(&id).unwrap();
+            }
+
+            // Restore doesn't preserve original line position (see DECISIONS.md,
+            // 2026-07-10) — comparing the sorted line set is the actual Phase One
+            // "zero data loss" guarantee: every line's content survives, in some order.
+            let restored_contents = fs::read_to_string(ws.path.join("CLAUDE.md")).unwrap();
+            let mut restored_lines: Vec<&str> = restored_contents.lines().collect();
+            restored_lines.sort();
+            assert_eq!(restored_lines, original_lines, "cycle {cycle}: same set of lines must survive a full off/on cycle");
+            assert_eq!(manager.counts("CLAUDE.md"), (4, 4), "cycle {cycle}: back to fully enabled, no drops or duplicates");
+        }
+    }
+
     #[test]
     fn loads_against_this_projects_real_claude_md_matching_parser_findings() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf();

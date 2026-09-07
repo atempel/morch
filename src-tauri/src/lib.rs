@@ -152,4 +152,65 @@ mod tests {
 
         fs::remove_dir_all(&tmp).ok();
     }
+
+    // M9 (docs/IMPLEMENTATION_PLAN.md, GitHub issue #5): backend-level proxy
+    // for USER_FLOWS.md §4.3's "Claude Code edits CLAUDE.md live" scenario —
+    // an external process rewrites the managed file, the watcher notices, and
+    // a fresh load (mirroring the frontend's `reloadInstructions` on the
+    // `morch://external-change` event) picks up the new/changed content. This
+    // covers the watcher -> re-parse half of the flow automatically; it is not
+    // a substitute for M9's stated acceptance bar, which requires the actual
+    // dashboard passing manual verification (no Tauri window can be driven
+    // from this headless test) — see DECISIONS.md, 2026-09-07.
+    #[test]
+    fn external_edit_is_detected_and_a_fresh_load_reflects_the_new_content() {
+        let tmp = std::env::temp_dir().join(format!("morch-test-external-edit-{}", std::process::id()));
+        fs::create_dir_all(&tmp).unwrap();
+        let workspace_path = tmp.to_string_lossy().to_string();
+        let claude_md = tmp.join("CLAUDE.md");
+        fs::write(&claude_md, "original instruction\n").unwrap();
+
+        let managed_files = vec![ManagedFile { name: "CLAUDE.md".to_string(), path: "CLAUDE.md".to_string(), enabled: true }];
+
+        let initial = instructions::InstructionManager::load(
+            workspace_path.clone(),
+            &managed_files,
+            &HashMap::new(),
+            ".morch-disabled".to_string(),
+        )
+        .unwrap();
+        assert_eq!(initial.instructions().len(), 1);
+
+        let (tx, rx) = std::sync::mpsc::channel::<PathBuf>();
+        let _watcher = watcher::start_watching(vec![claude_md.clone()], move |path| {
+            let _ = tx.send(path);
+        })
+        .expect("start_watching failed");
+
+        // Simulate Claude Code editing the file live: add a new instruction
+        // and rewrite the existing one, via a plain external write (no
+        // record_self_write — this must look exactly like a real external edit).
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        fs::write(&claude_md, "rewritten instruction\na brand new instruction\n").unwrap();
+
+        rx.recv_timeout(std::time::Duration::from_secs(2)).expect("expected the watcher to report the external edit");
+
+        let reloaded = instructions::InstructionManager::load(
+            workspace_path,
+            &managed_files,
+            &HashMap::new(),
+            ".morch-disabled".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(reloaded.instructions().len(), 2, "both the rewritten and the new line must be picked up");
+        assert!(reloaded.instructions().iter().any(|i| i.content == "rewritten instruction"));
+        assert!(reloaded.instructions().iter().any(|i| i.content == "a brand new instruction"));
+        assert!(
+            !reloaded.instructions().iter().any(|i| i.content == "original instruction"),
+            "the pre-edit content must not linger in a fresh load"
+        );
+
+        fs::remove_dir_all(&tmp).ok();
+    }
 }
