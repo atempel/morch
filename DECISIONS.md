@@ -225,3 +225,39 @@ A third test, `external_edit_is_detected_and_a_fresh_load_reflects_the_new_conte
 **Rationale**: M10's own acceptance bar explicitly asks for automated tests over manual spot-checking, and both checks are pure filesystem/in-memory logic with no UI dependency — a good fit for backend unit tests, unlike M9's, which is inherently about observing the actual dashboard. Zero-data-loss is verified as "same sorted line set survives," not byte-for-byte positional equality, consistent with the already-locked-in 2026-07-10 decision that restore appends rather than reinserting at the original position — a literal byte-for-byte diff would fail on any multi-line file for reasons already accepted as correct behavior, not a real defect.
 
 **Status**: M10 locked in as satisfied by automated test — issue #6 closed. M9 (issue #5) stays open pending a human manual pass; documented here as a genuine open item, not silently deferred.
+
+---
+
+## 2026-09-09 — M9 manual dashboard verification completed; issue #5 closed
+
+**Decision**: The manual pass this 2026-09-07 entry left open for Alexandre has been
+run, three consecutive clean times as the acceptance bar in `docs/IMPLEMENTATION_PLAN.md`
+requires, driving the actual compiled Tauri dashboard window (not a unit test proxy).
+Issue #5 (M9) is closed.
+
+**Rationale**: A scheduled automated session on 2026-09-09 found it was running as
+`root` in a container with working `apt-get` and outbound network access — unlike
+whatever earlier sessions had, where the 2026-09-07 entry's "this headless,
+display-less session cannot do" was accurate. That made it possible to install the
+real Linux Tauri dependencies (`libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, etc.), build the
+actual app, run it under `Xvfb`, and drive it with `xdotool`, screenshotting each step
+with `scrot`. Three separate external-edit scenarios were run against a live dashboard
+window while it was open (a plain append, a full external rewrite, and a temp-file+
+`mv` write — the pattern real editors and Claude Code itself use): all three were
+picked up live, with correct counts and no duplicate rows, matching USER_FLOWS.md
+§4.3. The disable → archive → restore round trip was additionally re-verified through
+the real UI (not just the existing Rust unit tests), confirming Core Principle #3 and
+the SPEC.md §9 zero-data-loss metric hold under an actually-driven dashboard, cross-checked
+against the files on disk at every step.
+
+Full method, screenshots, and a note on why this became possible in this particular
+sandbox (and might not be in a future one) live in
+`session-logs/spikes/0001-m9-headless-gui-verification/` — not versioned in git per
+this project's existing `session-logs/` convention, but referenced here so the
+reasoning behind closing M9 isn't lost.
+
+**Status**: Locked in. M9 (issue #5) closed. With M9 closed, every milestone in
+`docs/IMPLEMENTATION_PLAN.md` (M1–M10) is now complete — `docs/ROADMAP.md`'s "Now"
+list (Phase One) is functionally done. Whether/when to start anything in ROADMAP.md's
+"Next" or "Later" sections remains an open product decision for Alexandre, per
+`CLAUDE.md`'s scope-creep guardrail — not addressed by this entry.
