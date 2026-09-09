@@ -250,12 +250,6 @@ the real UI (not just the existing Rust unit tests), confirming Core Principle #
 the SPEC.md §9 zero-data-loss metric hold under an actually-driven dashboard, cross-checked
 against the files on disk at every step.
 
-Full method, screenshots, and a note on why this became possible in this particular
-sandbox (and might not be in a future one) live in
-`session-logs/spikes/0001-m9-headless-gui-verification/` — not versioned in git per
-this project's existing `session-logs/` convention, but referenced here so the
-reasoning behind closing M9 isn't lost.
-
 **Status**: Locked in. M9 (issue #5) closed. With M9 closed, every milestone in
 `docs/IMPLEMENTATION_PLAN.md` (M1–M10) is now complete — `docs/ROADMAP.md`'s "Now"
 list (Phase One) is functionally done. Whether/when to start anything in ROADMAP.md's
