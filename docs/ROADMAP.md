@@ -19,6 +19,8 @@ Sequenced implementation tasks. Each depends on the ones before it unless noted.
 
 ## Next — Immediately Post-Phase-One
 
+Each item below has a `kind: decision` brief in `docs/plan/spikes/` (SP-001, SP-002, SP-003) and an issue on the board. A brief prepares the decision — evidence, options, trade-offs — and stops; per `CLAUDE.md`, none of these starts until `DECISIONS.md` records the choice.
+
 - Multi-line instruction block support (grouping consecutive lines like DECISIONS.md's Decision/Rationale/Status into one toggleable unit) — flagged as a real gap in `PARSING_VALIDATION.md`, deferred because it needs a block-boundary heuristic that's easy to get wrong.
 - Instruction `type` metadata (directive vs. context) — informed by the "Project Purpose" prose-paragraph finding.
 - Usage analytics to inform naming/aliasing suggestions (SPEC.md §8 asks whether the app should suggest names).

@@ -14,8 +14,16 @@ description: Use when committing, pushing, opening issues/PRs, or making any git
 Single `main`. Small, routine changes (config tweaks, doc fixes, permission allowlist
 updates) can be committed directly — no PR needed for those.
 
-**Big updates or changes must go through a PR and be reviewed by another agent before
-merging.** This includes new milestones/features, architecture or persistence changes, and
+**Spike PRs merge themselves.** A PR whose title names a `kind: build` spike
+(`feat(SP-004): …`) is merged by `.github/workflows/auto-merge.yml` once CI is green and
+`scripts/check-pr-scope.mjs` finds it structurally in scope — right spike, `Closes #<n>`
+naming its issue, no edit to a decided document, `DECISIONS.md` appended not rewritten, the
+brief updated, no workflow touched. The guard is the review for that class of change; see
+`docs/plan/spikes/README.md` and the 2026-09-12 entry in `DECISIONS.md`.
+
+**Everything else — big updates or changes that are not a build spike — must go through a
+PR and be reviewed by another agent before merging.** The guard labels those `needs-review`
+and says why. This includes new milestones/features, architecture or persistence changes, and
 anything otherwise significant enough to warrant a `DECISIONS.md` entry. Open a branch, push
 it, `gh pr create`, get another agent's review, then merge — don't merge your own PR without
 that review. There's no branch protection enforcing this yet, so it's on the honor system
@@ -51,10 +59,13 @@ decision (per `CLAUDE.md`'s rule), update `DECISIONS.md` in the SAME commit, not
 `gh` CLI is authenticated and available — prefer it over manual GitHub web steps for
 anything scriptable (issues, PRs, repo settings).
 
-## Tracking milestones
+## Tracking work
 
-Track progress against `docs/IMPLEMENTATION_PLAN.md`'s M1–M10. If using issues per
-milestone, reference the milestone ID (M6, M7, ...) in the title via `gh issue create`.
+Phase One's M1–M10 (`docs/IMPLEMENTATION_PLAN.md`) are closed. Work since is spikes:
+`docs/plan/spikes/SP-NNN-*.md` is the brief, the issue titled `SP-NNN — Title` is the
+state. `gh issue list --label spike --state open` is the board. Issues are created from
+briefs by `scripts/sync-spikes-to-issues.mjs` (or the `board` workflow's manual run), never
+by hand — a hand-written spike issue drifts from its brief.
 
 ## Cowork's docs-only workflow
 

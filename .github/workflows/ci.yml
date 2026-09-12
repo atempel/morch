@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # `ready_for_review` is not in GitHub's default set. Without it, a PR opened
+    # as a draft gets its CI while still a draft, auto-merge sees the draft and
+    # skips it, and nothing ever looks again once it is marked ready. Re-running
+    # CI on the transition is what puts the PR back in front of auto-merge,
+    # with "CI is green" still a fact rather than a status lookup.
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   frontend:

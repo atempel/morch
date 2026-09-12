@@ -1,0 +1,58 @@
+name: board
+
+# Validates the process, not the code: the spike briefs' own consistency, and
+# whether the GitHub issues that carry their state agree with them.
+#
+# Separate from CI on purpose — it has to pass before any toolchain exists, and
+# it guards conventions that would otherwise depend on someone remembering.
+#
+# The `sync` job is the board's bootstrap and its manual repair: run it from
+# the Actions tab (workflow_dispatch) to create labels and issues for briefs
+# that have none, and to recompute `ready`/`blocked`. `auto-merge.yml` and
+# `issue-hygiene.yml` do the same recompute on their own events.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  spikes:
+    name: spike board
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Spike briefs — frontmatter, dependency DAG, required sections
+        run: node scripts/validate-spikes.mjs
+
+      - name: Every brief has an issue, and readiness labels match the briefs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/sync-spikes-to-issues.mjs --check
+
+  sync:
+    name: create missing issues and recompute readiness
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/validate-spikes.mjs
+      - name: Sync briefs to issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/sync-spikes-to-issues.mjs

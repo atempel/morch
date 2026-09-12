@@ -1,0 +1,196 @@
+name: auto-merge
+
+# Merges a spike PR after CI has actually passed — without depending on branch
+# protection, which GitHub does not offer for private repositories on the Free
+# plan and which this repository does not use.
+#
+# It triggers on the *completion* of the CI workflow, so "CI is green" is a fact
+# by the time this runs, not a race. The spike id comes from the PR title's
+# conventional-commit scope as well as the branch, because cloud sessions are
+# assigned branch names they do not choose.
+#
+# What auto-merges: a PR that names a `kind: build` spike, closes that spike's
+# issue, touches no decided document and no workflow, and passes the rest of
+# scripts/check-pr-scope.mjs. Everything else is held with `needs-review` and a
+# comment, which is where `.claude/skills/github-workflow/SKILL.md`'s
+# second-agent review still applies.
+#
+# Security note: workflow_run runs the workflow and scripts from the DEFAULT
+# branch, not from the PR. That is deliberate — a PR cannot edit the guard that
+# judges it. We fetch only the PR's spike briefs into the working tree so the
+# guard reads the PR's briefs while running main's code.
+#
+# WARNING: any step whose exit code gates a decision must not end in a pipe.
+# `node guard.mjs | tee log.txt` exits with tee's status, which is always 0,
+# so `steps.<id>.outcome` would read success no matter what the guard decided.
+# Hence `set -o pipefail`.
+
+on:
+  workflow_run:
+    workflows: [CI]   # the workflow NAME from .github/workflows/ci.yml
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  # Closing the issue a merged PR links is an issue write. Without this, the
+  # merge lands and the close silently does not — and the guard's own issue
+  # lookup fails too, since a declared `permissions:` block sets every unlisted
+  # scope to `none`.
+  issues: write
+
+jobs:
+  merge:
+    name: merge if green and in scope
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Find the pull request
+        id: pr
+        run: |
+          set -o pipefail
+          NUM=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')
+          if [ -z "$NUM" ]; then echo "no open PR for $BRANCH"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          DRAFT=$(gh pr view "$NUM" --json isDraft --jq .isDraft)
+          if [ "$DRAFT" = "true" ]; then echo "PR #$NUM is a draft"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "number=$NUM" >> "$GITHUB_OUTPUT"
+          gh pr view "$NUM" --json title --jq .title > pr-title.txt
+          gh pr view "$NUM" --json body --jq .body > pr-body.txt
+
+      - name: Load the PR's board state
+        if: steps.pr.outputs.skip != 'true'
+        run: |
+          git fetch origin "pull/${{ steps.pr.outputs.number }}/head:pr-head"
+          # the PR's briefs, main's guard script — a PR cannot rewrite its own judge
+          git checkout pr-head -- docs/plan/spikes/
+
+      - name: Spike board
+        id: board
+        if: steps.pr.outputs.skip != 'true'
+        continue-on-error: true
+        run: node scripts/validate-spikes.mjs
+
+      - name: Scope guard
+        id: scope
+        if: steps.pr.outputs.skip != 'true'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          node scripts/check-pr-scope.mjs \
+            --base origin/main \
+            --head pr-head \
+            --branch "$BRANCH" \
+            --title "$(cat pr-title.txt)" \
+            --body-file pr-body.txt \
+            --repo "${{ github.repository }}" \
+            --issue-out issue.txt | tee scope.txt
+
+      # A second, independent reason to refuse: the PR must name a spike at all.
+      - name: Does the PR name a spike
+        id: named
+        if: steps.pr.outputs.skip != 'true'
+        continue-on-error: true
+        run: |
+          printf '%s %s' "$(cat pr-title.txt)" "$BRANCH" | grep -qE 'SP-[0-9]{3}'
+
+      - name: Merge
+        id: merge
+        if: >
+          steps.pr.outputs.skip != 'true' &&
+          steps.scope.outcome == 'success' &&
+          steps.board.outcome == 'success' &&
+          steps.named.outcome == 'success'
+        run: |
+          gh pr merge "${{ steps.pr.outputs.number }}" --squash --delete-branch
+          gh pr comment "${{ steps.pr.outputs.number }}" \
+            --body "Merged automatically: CI green, scope guard clean. Read the squashed commit when you get a chance — CI checked that this is legal, not that it is good."
+
+      # Merging IS what closes a spike, so the close is part of the merge rather
+      # than a hope about it. GitHub's own `Closes #n` handling performs the
+      # close as the merging token, and a close performed with GITHUB_TOKEN
+      # emits no further events — so `issue-hygiene.yml` will never see it.
+      # Everything it would have done is therefore done here, and asserted.
+      - name: Close the spike's issue
+        if: steps.merge.outcome == 'success'
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          SPIKE=$(printf '%s %s' "$(cat pr-title.txt)" "$BRANCH" | grep -oE 'SP-[0-9]{3}' | head -1 || true)
+          N=$(cat issue.txt 2>/dev/null || true)
+          if [ -z "$N" ]; then
+            # The guard swallows an API failure as a note rather than a blocker,
+            # so do not depend on it having resolved the number: match the PR
+            # body's own candidates against the spike id, by title, not by
+            # taking the first number.
+            for C in $(grep -ioE '\b(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' pr-body.txt | grep -oE '[0-9]+'); do
+              T=$(gh issue view "$C" --repo "$REPO" --json title --jq .title 2>/dev/null || true)
+              case "$T" in
+                "$SPIKE"*) N=$C; echo "the guard resolved no issue; matched #$N to $SPIKE from the PR body"; break ;;
+              esac
+            done
+          fi
+          if [ -z "$N" ]; then
+            echo "::error::merged, but no issue could be matched to $SPIKE — the board still says this spike is open"
+            exit 1
+          fi
+          for attempt in 1 2 3 4 5; do
+            STATE=$(gh issue view "$N" --repo "$REPO" --json state --jq .state)
+            if [ "$STATE" = "CLOSED" ]; then
+              echo "#$N is closed (attempt $attempt)"
+              break
+            fi
+            echo "#$N is $STATE — closing it explicitly (attempt $attempt)"
+            gh issue close "$N" --repo "$REPO" --reason completed || true
+            sleep 3
+          done
+          STATE=$(gh issue view "$N" --repo "$REPO" --json state --jq .state)
+          if [ "$STATE" != "CLOSED" ]; then
+            echo "::error::#$N is still $STATE after merging — the board says this spike is unfinished"
+            exit 1
+          fi
+          # A closed spike is neither claimed nor waiting.
+          gh issue edit "$N" --repo "$REPO" \
+            --remove-label in-progress --remove-label ready --remove-label blocked || true
+
+      # And whatever that close unblocked.
+      - name: Recompute readiness
+        if: steps.merge.outcome == 'success'
+        run: node scripts/sync-spikes-to-issues.mjs
+
+      - name: Hold for review
+        if: >
+          steps.pr.outputs.skip != 'true' &&
+          (steps.scope.outcome == 'failure' ||
+           steps.board.outcome == 'failure' ||
+           steps.named.outcome == 'failure')
+        run: |
+          gh pr edit "${{ steps.pr.outputs.number }}" --add-label needs-review || true
+          {
+            echo "## Auto-merge withheld"
+            echo
+            if [ "${{ steps.named.outcome }}" = "failure" ]; then
+              echo "This PR names no spike, in neither its title nor its branch. Only spike work auto-merges; this one takes the second-agent review from \`.claude/skills/github-workflow/SKILL.md\`."
+              echo
+            fi
+            echo "CI is green, but the guard says this one needs you:"
+            echo
+            echo '```'
+            cat scope.txt 2>/dev/null || echo '(the guard produced no output)'
+            echo '```'
+            echo
+            echo "Merge it yourself once you've looked, or push a fix to the branch."
+          } > body.md
+          gh pr comment "${{ steps.pr.outputs.number }}" --body-file body.md
