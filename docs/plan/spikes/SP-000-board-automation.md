@@ -69,6 +69,14 @@ The mechanism is a port of a board that runs another project of the same owner's
 - `kind: decision` stops the routine as hard as `kind: research` does, because `CLAUDE.md` makes every step into Next/Later a logged product decision.
 - The frozen-document list is this project's own decided set. `docs/TECHNICAL_ARCHITECTURE.md` and `docs/FILE_STRUCTURE.md` are deliberately editable, because they describe the code as built and a build spike that changes the on-disk layout has to keep them true.
 
+**`CLAUDE.md` and `AGENTS.md` are test fixtures.** `src-tauri/src/parser.rs` and
+`src-tauri/src/instructions.rs` read this repository's own two files and assert the
+exact instruction line numbers `docs/PARSING_VALIDATION.md` documents. The first CI
+run of this spike's PR failed three Rust tests because a section had been added to
+each file. The pointers to the board now extend an existing line instead of adding
+one — the line set the tests pin is unchanged, checked by construction. The rule is
+in `.claude/commands/spike.md`: never add or remove a line in either file; extend one.
+
 Two defects that a port of this kind is prone to were checked for before the first push, because they are silent: a multi-line `--body "…"` string inside a `run:` block whose continuation lines start in column 0 ends the YAML block scalar and makes GitHub refuse the whole workflow with no error a PR check would show (the Actions API then lists the file by path instead of by `name:`); and a guard step ending in `| tee` reports `tee`'s exit code, so the merge decision reads success whatever the guard said. Every multi-line body here is a quoted heredoc written to a file, and the guard step sets `pipefail`.
 
 ## Outcome

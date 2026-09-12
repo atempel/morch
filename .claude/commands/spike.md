@@ -54,6 +54,7 @@ Work on the branch this environment gives you; never commit to `main`. Implement
 - Structural and AI-facing files are written in English.
 - Do not edit `docs/SPEC.md`, `docs/PRD.md`, `docs/USER_FLOWS.md`, `DESIGN.md` or `BRAND.md`. Those are decided. If one is wrong, that is a finding for the PR body, not an edit.
 - An architecture, framework or persistence choice gets its `DECISIONS.md` entry in the same commit.
+- Never add or remove a line in `CLAUDE.md` or `AGENTS.md`. Both are fixtures for `src-tauri`'s parser tests, which pin their exact instruction line numbers; a pointer that has to go there extends an existing line.
 
 Anything worth doing that is out of scope: write a new brief from `docs/plan/spikes/TEMPLATE.md`, open its issue (`node scripts/sync-spikes-to-issues.mjs`, or the `board` workflow's manual run), and leave the work undone.
 
