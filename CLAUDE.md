@@ -17,8 +17,7 @@ This project is the specification and eventual implementation of Morch — a des
 - Phase One is instruction management ONLY. Do not scope-creep into skills/context management without an explicit decision logged in `DECISIONS.md`.
 - Any architectural choice (framework, storage format, sync strategy) should be logged in `DECISIONS.md` with rationale.
 - When editing docs, keep terminology consistent: "instruction" (a single toggleable unit), "managed file" (a file the app tracks), "disabled archive" (where toggled-off instructions live).
-- Version control: see `.claude/skills/github-workflow/SKILL.md` for branch strategy, commit conventions, and when to update `DECISIONS.md` alongside a git change.
-- Units of work are spikes in `docs/plan/spikes/`, tracked as GitHub issues — see `docs/plan/spikes/README.md` and `AGENTS.md`. Never start implementation from a loose description: find the spike, or write one from `docs/plan/spikes/TEMPLATE.md` first. Anything in `docs/ROADMAP.md`'s Next/Later is a `kind: decision` brief until a `DECISIONS.md` entry says otherwise.
+- Version control: see `.claude/skills/github-workflow/SKILL.md` for branch strategy, commit conventions, and when to update `DECISIONS.md` alongside a git change. Units of work since Phase One are spikes in `docs/plan/spikes/`, tracked as GitHub issues — read `docs/plan/spikes/README.md` before starting anything, never start from a loose description, and treat every item in `docs/ROADMAP.md`'s Next/Later as a `kind: decision` brief until a `DECISIONS.md` entry says otherwise.
 
 ## Open Research Questions
 
