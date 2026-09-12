@@ -1,0 +1,92 @@
+name: issue-hygiene
+
+# Keeps the board honest without anyone remembering to.
+#
+# Event-driven, not a mirror: nothing here copies state into a file. It runs on
+# closes and reopens performed by a person or by a token that emits events. A
+# close performed by `auto-merge.yml`'s GITHUB_TOKEN emits none, which is why
+# that workflow repeats the two jobs below itself after a merge.
+#
+# Any multi-line string inside a `run:` block must stay indented inside it —
+# here, via a quoted heredoc written to a file. A line starting in column 0
+# ends the block scalar and GitHub refuses the whole file, silently.
+
+on:
+  issues:
+    types: [closed, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  release-claim:
+    name: drop in-progress from a closed spike
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      NUM: ${{ github.event.issue.number }}
+    steps:
+      # A claim is a label a session adds before working. If the session dies
+      # mid-spike the label would sit there forever and nothing could pick the
+      # spike up again, so closing the issue always releases it.
+      - name: Release the claim
+        run: gh issue edit "$NUM" --repo "${{ github.repository }}" --remove-label in-progress --remove-label ready --remove-label blocked || true
+
+  unblock-dependents:
+    name: relabel spikes this one unblocked
+    if: github.event.action == 'closed' || github.event.action == 'reopened'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Recomputes ready/blocked for every open spike from the dependency graph
+      # in the briefs and the current issue states. Cheap, idempotent, and it
+      # means no spike stays `blocked` after its last dependency closes.
+      - name: Recompute readiness
+        run: node scripts/sync-spikes-to-issues.mjs
+
+  bucket-complete:
+    name: ask for a roadmap review when a bucket empties
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      # Through the environment, not interpolated into the script: a label name
+      # is text anyone with write access can choose.
+      LABELS: ${{ join(github.event.issue.labels.*.name, ' ') }}
+    steps:
+      # docs/ROADMAP.md's Next/Later prose and README.md's status line go stale
+      # by event, not by conversation. So this fires an event instead of trying
+      # to keep a copy in sync.
+      - name: Check the bucket
+        run: |
+          B=$(printf '%s\n' "$LABELS" | grep -oE '\b(next|later)\b' | head -1 || true)
+          if [ -z "$B" ]; then echo "not a roadmap-bucket issue"; exit 0; fi
+          LEFT=$(gh issue list --repo "$REPO" --label spike --label "$B" --state open --json number --jq 'length')
+          echo "$B has $LEFT open spike(s)"
+          if [ "$LEFT" != "0" ]; then exit 0; fi
+          if [ -n "$(gh issue list --repo "$REPO" --search "$B bucket complete in:title" --state all --json number --jq '.[0].number // empty')" ]; then
+            echo "review issue already exists"; exit 0
+          fi
+          cat > bucket-review.md <<'BODY'
+          Every spike labelled `%B%` is closed.
+
+          Three documents describe the roadmap and none of them knows this happened. They are prose someone wrote at a point in time, and this is the point in time when that prose stopped being true:
+
+          - `docs/ROADMAP.md` — the `%B%` section: was it actually done, or did the scope move? What is the next bucket?
+          - `README.md` — the Project Status paragraph
+          - `docs/plan/spikes/README.md` — if the process itself changed while `%B%` ran
+
+          This is a decision, not a status update: anything quietly not done should be written down as not done, with what changed. Close this when the three are read, whether or not any of them needed an edit.
+          BODY
+          sed -i "s/%B%/$B/g" bucket-review.md
+          gh issue create --repo "$REPO" \
+            --title "$B bucket complete — review the documents it dated" \
+            --body-file bucket-review.md

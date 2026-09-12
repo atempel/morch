@@ -1,0 +1,98 @@
+name: dedupe
+
+# Closes duplicate spike PRs the moment they open.
+#
+# The routine runs on a schedule, and a PR can sit open longer than one
+# interval. Every run in that window reads the board, sees the spike still
+# `ready`, and can redo it. The prompt asking the runner to check open PRs is
+# the right instruction, but it is an instruction. This is a lock: it runs on
+# GitHub, after the fact, and does not care whether the session read it,
+# resumed with stale context, or ran concurrently with another. A rule you can
+# only ask for is not a rule.
+#
+# Any multi-line string inside a `run:` block must stay indented inside it —
+# here, via a quoted heredoc written to a file and passed as `--body-file`. A
+# line starting in column 0 ends the block scalar, and GitHub then refuses the
+# whole file without saying so anywhere a PR check would show.
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  dedupe:
+    name: close if already taken
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      NUM: ${{ github.event.pull_request.number }}
+      # Through the environment, never interpolated into a script: a PR title
+      # and a branch name are text anyone who can open a PR gets to choose.
+      TITLE: ${{ github.event.pull_request.title }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - name: Identify the spike
+        id: id
+        run: |
+          SPIKE=$(printf '%s %s' "$TITLE" "$BRANCH" | grep -oE 'SP-[0-9]{3}' | head -1 || true)
+          if [ -z "$SPIKE" ]; then
+            echo "no spike id in title or branch — not a spike PR, leaving it alone"
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "spike=$SPIKE" >> "$GITHUB_OUTPUT"
+          echo "found $SPIKE"
+
+      # The lock is about two sessions racing for the same *open* work, and an
+      # open PR is the only evidence of that race. A PR against a spike that is
+      # already closed is legitimate — a follow-up fix, a docs correction — and
+      # is not touched here.
+      - name: Another open PR for the same spike?
+        id: other
+        if: steps.id.outputs.skip != 'true'
+        env:
+          SPIKE: ${{ steps.id.outputs.spike }}
+        run: |
+          set -o pipefail
+          # The earlier PR keeps the claim, so only a *lower* number counts: a
+          # reopened older PR is the claim, not the duplicate.
+          OTHER=$(gh pr list --repo "$REPO" --state open --base main --json number,title,headRefName \
+            | jq -r --arg spike "$SPIKE" --argjson num "$NUM" \
+                '[.[] | select(.number < $num) | select((.title + " " + .headRefName) | test($spike)) | .number] | sort | .[0] // empty')
+          if [ -n "$OTHER" ]; then
+            echo "first=$OTHER" >> "$GITHUB_OUTPUT"
+            echo "#$OTHER is already open for $SPIKE"
+          else
+            echo "no earlier open PR names $SPIKE"
+          fi
+
+      - name: Close as duplicate — another PR got there first
+        if: steps.id.outputs.skip != 'true' && steps.other.outputs.first != ''
+        env:
+          SPIKE: ${{ steps.id.outputs.spike }}
+          FIRST: ${{ steps.other.outputs.first }}
+        run: |
+          # Quoted heredoc: the body carries backticks, which an unquoted one
+          # would run as command substitution. Placeholders are substituted
+          # afterwards for the same reason.
+          cat > duplicate.md <<'BODY'
+          Closing as a duplicate: **#%FIRST% is already open for %SPIKE%.**
+
+          Two sessions picked the same spike because the first one's PR had not merged yet, so the board still said `ready`. The earlier PR keeps the claim.
+
+          If the earlier PR is stuck and this one is better, close that one and reopen this.
+          BODY
+          sed -i "s/%FIRST%/$FIRST/g; s/%SPIKE%/$SPIKE/g" duplicate.md
+          gh pr comment "$NUM" --repo "$REPO" --body-file duplicate.md
+          gh pr close "$NUM" --repo "$REPO"
+
+      - name: Nothing to do
+        if: steps.id.outputs.skip != 'true' && steps.other.outputs.first == ''
+        run: echo "no duplicate — this PR has the claim"

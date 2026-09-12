@@ -24,7 +24,7 @@ When AI workspaces grow large, instructions accumulate across multiple markdown 
 
 ## Project Status
 
-**Phase**: Phase One shipped — M1–M10 all complete (Tauri v2 + React scaffold, workspace scanner, onboarding, parser, disabled-archive manager, file watcher, instruction manager, dashboard UI, bidirectional sync, QA pass). Framework, PRD, visual identity (Nord, dual-tone), and dashboard interaction design (List + Board views, onboarding, disabled-instruction archive, ignored-files drawer) are all locked and validated via an interactive prototype and, as of M9, the real running app. See the [Development](#development) section below and `docs/IMPLEMENTATION_PLAN.md` for milestone detail. What (if anything) comes next is an open product decision — see `docs/ROADMAP.md`'s "Next"/"Later" sections.
+**Phase**: Phase One shipped — M1–M10 all complete (Tauri v2 + React scaffold, workspace scanner, onboarding, parser, disabled-archive manager, file watcher, instruction manager, dashboard UI, bidirectional sync, QA pass). Framework, PRD, visual identity (Nord, dual-tone), and dashboard interaction design (List + Board views, onboarding, disabled-instruction archive, ignored-files drawer) are all locked and validated via an interactive prototype and, as of M9, the real running app. See the [Development](#development) section below and `docs/IMPLEMENTATION_PLAN.md` for milestone detail. What (if anything) comes next is an open product decision — see `docs/ROADMAP.md`'s "Next"/"Later" sections. Each "Next" item now has a decision brief on the board (`docs/plan/spikes/`, issues labelled `spike`); none starts until it is decided.
 **Scope**: Phase One — instruction management only (see `docs/SPEC.md` §7)
 
 ## Structure
@@ -46,6 +46,7 @@ morch/
 │   ├── ROADMAP.md            ← Now/Next/Later + sequenced Phase One tasks
 │   ├── IMPLEMENTATION_PLAN.md  ← milestone-by-milestone coding handoff brief (M1–M10)
 │   ├── PRD.md               ← canonical product requirements doc
+│   ├── plan/spikes/         ← units of work since Phase One; state lives in GitHub issues
 │   └── PRP_morch_logo_octopus.md  ← logo design handoff brief
 ├── brand/
 │   ├── STATUS.md                    ← current state of the logo work + open items

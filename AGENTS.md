@@ -2,7 +2,7 @@
 
 ## Context
 
-This file exists for any AI agent (Claude Code, Cursor, etc.) working on the Morch codebase once implementation begins. It complements `CLAUDE.md`.
+This file exists for any AI agent (Claude Code, Cursor, etc.) working on the Morch codebase once implementation begins. It complements `CLAUDE.md`. Work since Phase One is defined as spikes on a GitHub-issues board — `docs/plan/spikes/README.md` says how a unit of work is claimed, run, verified and merged, and why `research`/`decision` briefs stop for a person instead of running unattended.
 
 ## Agent Responsibilities by Area
 

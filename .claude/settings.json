@@ -7,7 +7,9 @@
     "allow": [
       "Bash(cargo test *)",
       "Bash(cargo build *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(node scripts/*)",
+      "Bash(npm run build*)"
     ]
   }
 }
