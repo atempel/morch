@@ -68,8 +68,25 @@ Should Morch collect any usage data to inform alias suggestions, and if so: what
 
 ## Notes
 
-<!-- Filled by the runner. Surprises, options considered, anything the next spike needs to know. -->
+**Step 1 — existing telemetry search.** Searched `docs/TECHNICAL_ARCHITECTURE.md`, `DECISIONS.md`, and `CLAUDE.md` (case-insensitive) for "telemetry", "analytics", "leaves the"/"leave the user", "no server", "offline", "local-only", "local-first" — no matches in any of the three files. Confirmed: Morch has no telemetry or analytics mechanism today, local or remote. The only usage-adjacent persisted data anywhere is `.morch/config.json`'s `instructionAliases` (`FILE_STRUCTURE.md` §6.3) — a flat `id → name` map, no timestamps or history.
+
+**Step 2 — signals available without new instrumentation:**
+
+- Alias edits/removals via `set_alias`/`set_instruction_alias` (`instructions.rs`) — current value only, no history of past edits.
+- Toggle frequency via `toggle`/`disable`/`enable` (`instructions.rs`) — directly answers SPEC.md §8's "how often do users toggle vs. delete," but nothing is recorded after the fact today.
+- Instruction content (`ParsedInstruction.content`/`Instruction.content`) — available at parse time, usable without any usage history.
+- File-level stats already computed for the wizard (`ScannedFile.lineCount`/`wordCount` in `src/types.ts`) — a weak proxy for "how do users structure workspaces," zero new code needed.
+
+**Step 3 — options:**
+
+- **(a) Local-only usage log** — append-only `.morch/usage.jsonl` recording toggle/alias events by instruction id, read only by Morch, never transmitted. Cost: new event-writing code at every `toggle`/`set_alias` call, plus an open retention question (unbounded growth) and a follow-up build spike just to turn raw events into an actual suggestion. Consequence: stays entirely local-first, no network call, nothing leaves the machine; the only option that actually answers "toggle vs. delete" with real longitudinal data.
+- **(b) Content-only suggestion, no event log** — derive a suggestion from `content` alone (e.g. keyword extraction) at alias-assignment time. Cost: a suggestion function over already-in-memory `content`; no new persisted data, no retention question. Consequence: sidesteps "collect data" entirely, but can't answer "how do users naturally structure workspaces" or "toggle vs. delete" — never sees usage over time.
+- **(c) Do nothing yet** — explicitly re-defer, per `ROADMAP.md`'s own framing that this needs real usage data first. Cost: zero. Consequence: SPEC.md §8's four questions stay fully open, but Phase One's scope stays untouched, deferred until an actual install base makes (a)/(b) evaluable.
+
+**Step 4 — network/backend flag.** None of the three introduce a backend, a network call, or any data leaving the machine — (a) is a new local file under the existing `.morch/` trust boundary, (b) persists nothing, (c) changes nothing. A fourth possibility — aggregating usage across users' installs for cross-workspace suggestions — would be a materially different, separately-decided proposal per this brief's own "Out of scope" list; named here only to mark it excluded.
+
+Options and trade-offs posted to issue #17; `needs-decision` label added.
 
 ## Outcome
 
-<!-- Filled by the runner: done / blocked / abandoned, and what shipped. -->
+Blocked on a person's decision — not abandoned, not implementable further by the routine. `needs-decision` is on issue #17; no file under `src/` or `src-tauri/` changed; `docs/SPEC.md` unchanged. Next step for whoever picks this up: log the chosen option (including an explicit "no" if that's the answer) in `DECISIONS.md`, then a `kind: build` follow-up spike can add logging/suggestion code.
