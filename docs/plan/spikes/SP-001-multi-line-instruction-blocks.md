@@ -68,8 +68,20 @@ Should Morch group consecutive markdown lines into a single toggleable instructi
 
 ## Notes
 
-<!-- Filled by the runner. Surprises, options considered, anything the next spike needs to know. -->
+**Step 1 — is the triad representative?** Re-read `docs/PARSING_VALIDATION.md` finding 4 against `DECISIONS.md`'s actual entries. The `**Decision**`/`**Rationale**`/`**Status**` shape is real but not universal: the six earliest entries (2026-07-09, "Phase One scope limited to instructions only" through "Bidirectional real-time sync required") have no `**Status**` line at all — just Decision/Rationale. Several later entries have multi-paragraph `**Rationale**` text rather than one line (e.g. 2026-07-11 "File watcher" has three paragraphs under Rationale; the 2026-07-11 "Instruction Manager" entry has a numbered "Follow-up" section after Status). The 2026-07-10 `n0`/`n6` retune entry adds a bulleted "Known trade-offs" section that doesn't fit the triad shape at all. Conclusion: any fixed heuristic keyed strictly on "one line per label, three lines per entry" would misgroup or under-group roughly half of this project's own log entries — the exact ambiguity `PARSING_VALIDATION.md` already flagged as easy to get wrong.
+
+**Step 2 — current behavior, confirmed by test.** `cargo test parser::` (4/4 pass; this container needed `libgtk-3-dev`, `libsoup-3.0-dev`, `libwebkit2gtk-4.1-dev` installed first — none were present) confirms `does_not_attempt_block_grouping_on_log_style_content`: a Decision/Rationale/Status input returns 3 independent `ParsedInstruction`s, one per line, each with its own `line_{n}_{file}` id. No grouping happens today.
+
+**Step 3 — options:**
+
+- **(a) Fixed heuristic** (blank-line-delimited paragraphs, or consecutive `**Label**:` lines, become one block). Cost: a grouping pass in `parser.rs`, a block-id concept, `FILE_STRUCTURE.md` §6.4 schema change. Consequence: per Step 1, real `DECISIONS.md` entries don't uniformly fit the triad, so the heuristic needs a real spec for "what is a block" — the same ambiguity the brief itself warns about. Touches `src-tauri/src/parser.rs`, `src-tauri/src/archive.rs`, `src-tauri/src/instructions.rs`, `src/types.ts`, `docs/FILE_STRUCTURE.md` §6.4.
+- **(b) Explicit opt-in marker** the user adds to their own files. Cost: smaller parser change, but requires teaching users a new authoring convention. Consequence: in tension with Core Principle 1 — existing files like `DECISIONS.md` get nothing without a retrofit; ids are stable (explicit boundary) unlike (a). Touches the same files as (a) plus onboarding/docs.
+- **(c) No grouping** — keep the Phase One wizard-level mitigation (flag log-style files, "manage anyway" or exclude) indefinitely. Cost: zero, already shipped. Consequence: the real gap stays open; a "manage anyway" log-style file still reproduces the orphaned-entry problem. No id changes, no files touched.
+
+**Step 4 — id handling per option.** (a) and (b) both need `id` to name a multi-line span (e.g. `block_{start}_{end}_{file}`), which changes `instructionAliases` key shape in `.morch/config.json` and breaks the existing `line_{n}_{file}` convention everywhere it's read (`parser.rs`, `instructions.rs`, `src/types.ts`), and interacts with the 2026-07-11 position-derived-id mechanism that currently carries aliases across a toggle. (c) needs no id change at all — the only option compatible with today's schema with zero migration. Toggling a whole block through `archive.rs`'s content-addressed, line-by-line mechanism (used by (a)/(b)) is materially harder with duplicate-content entries — already a known edge case per the 2026-07-11 Follow-up note on `enable()`.
+
+Options and trade-offs posted to issue #15; `needs-decision` label added.
 
 ## Outcome
 
-<!-- Filled by the runner: done / blocked / abandoned, and what shipped. -->
+Blocked on a person's decision — not abandoned, not implementable further by the routine. `needs-decision` is on issue #15; no file under `src/` or `src-tauri/` changed; `docs/SPEC.md` unchanged. Next step for whoever picks this up: log the chosen option (or explicit continued deferral) in `DECISIONS.md`, then a `kind: build` follow-up spike can implement it.

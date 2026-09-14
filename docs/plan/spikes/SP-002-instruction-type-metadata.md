@@ -68,8 +68,20 @@ Should Morch add a stored `type` field (e.g. `directive` | `context`) to the `In
 
 ## Notes
 
-<!-- Filled by the runner. Surprises, options considered, anything the next spike needs to know. -->
+**Step 1 — confirm the finding still holds.** CLAUDE.md's "Project Purpose" section is still line 5, still a single non-header, non-blank instruction line under `parse_markdown`, matching `parser.rs`'s own `parses_claude_md_matching_parsing_validation_findings` test (`line_numbers[0] == 5`, content starts with "This project is the specification..."). `cargo test parser::` passes 4/4 (this container needed `libgtk-3-dev`, `libsoup-3.0-dev`, `libwebkit2gtk-4.1-dev` installed first).
+
+**Step 2 — where would `type` be populated?** A `parse_markdown`-time heuristic and a post-`InstructionManager::load()` heuristic land on the same guess, just at different pipeline points — a rule like "list/label pattern = directive" would still mislabel AGENTS.md's ordered Handoff Notes and DECISIONS.md's `**Label**:` lines (list/label-shaped, not imperative directives). The only option that avoids guessing entirely is manual, user-set classification via the alias workflow.
+
+**Step 3 — options:**
+
+- **(a) Auto-classify at parse time by heuristic.** Cost: one function in `parser.rs`, a `type` field on `ParsedInstruction`/`Instruction`, mirrored in `src/types.ts`, `FILE_STRUCTURE.md` §6.4 updated. Consequence: if `type` needs to be overridable and remembered across restarts, that's new `.morch/config.json` schema and a migration question (same shape as (b)); if always recomputed fresh and never overridden, it needs no persistence, converging with (c). Also risks reading as the app editorially judging the user's own words — needs careful tool-not-agent framing per Core Principle 2.
+- **(b) Manual, user-set field alongside `alias`.** Cost: a new optional field, a `set_instruction_type`-style command, a UI affordance next to every alias field, a new parallel `.morch/config.json` map (`instructionTypes`) — genuinely new persisted data, not reuse of `instructionAliases`. Consequence: respects Core Principle 1 (nothing forced, same nullable shape as `alias`), but likely low completion rate — most instructions probably stay untyped.
+- **(c) No stored field — computed in the dashboard from `content`, never persisted.** Cost: cheapest that ships anything — a pure function over `content`, no schema change, no migration. Consequence: same heuristic-accuracy risk as (a), but nothing wrong is ever written to disk — a later heuristic fix applies to every existing instruction for free.
+
+**Step 4 — schema impact.** (a) and (b) both require `FILE_STRUCTURE.md` §6.4, `instructions.rs`'s `Instruction` struct, and `src/types.ts` changes; (b) additionally needs a new top-level `.morch/config.json` map mirroring `instructionAliases`'s existing rebuild-on-write pattern. (a) needs a migration story only if `type` overrides must persist across restarts — if always recomputed fresh, no persistence and no migration, same as (c). (c) needs zero schema change and zero migration anywhere.
+
+Options and trade-offs posted to issue #16; `needs-decision` label added.
 
 ## Outcome
 
-<!-- Filled by the runner: done / blocked / abandoned, and what shipped. -->
+Blocked on a person's decision — not abandoned, not implementable further by the routine. `needs-decision` is on issue #16; no file under `src/` or `src-tauri/` changed; `docs/SPEC.md` unchanged. Next step for whoever picks this up: log the chosen option in `DECISIONS.md` (including whether it needs a `.morch/config.json` migration), then a `kind: build` follow-up spike can edit `instructions.rs`/`types.ts`.
